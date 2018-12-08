@@ -42,6 +42,7 @@ extern "C" {
 #define FLAG_SHSHONLY        1 << 7
 #define FLAG_LATEST          1 << 8
 #define FLAG_RERESTORE       1 << 9
+#define FLAG_UPDATE          1 << 10
 
 struct idevicerestore_client_t;
 
@@ -97,6 +98,8 @@ int extract_component(const char* ipsw, const char* path, unsigned char** compon
 int personalize_component(const char *component, const unsigned char* component_data, unsigned int component_size, plist_t tss_response, unsigned char** personalized_component, unsigned int* personalized_component_size);
 
 const char* get_component_name(const char* filename);
+    
+
     
 #ifdef __cplusplus
 }
