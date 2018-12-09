@@ -106,6 +106,7 @@ struct idevicerestore_client_t {
 	void* progress_cb_data;
     char *manifestPath;
     char *basebandPath;
+    int isCustom;
 };
 
 extern struct idevicerestore_mode_t idevicerestore_modes[];

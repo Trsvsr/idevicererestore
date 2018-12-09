@@ -173,21 +173,27 @@ int dfu_send_component(struct idevicerestore_client_t* client, plist_t build_ide
 	unsigned char* data = NULL;
 	uint32_t size = 0;
 
-	if (personalize_component(component, component_data, component_size, client->tss, &data, &size) < 0) {
-		error("ERROR: Unable to get personalized component: %s\n", component);
-		free(component_data);
-		return -1;
-	}
-	free(component_data);
-	component_data = NULL;
-
+    if (!client->isCustom) {
+        if (personalize_component(component, component_data, component_size, client->tss, &data, &size) < 0) {
+            error("ERROR: Unable to get personalized component: %s\n", component);
+            free(component_data);
+            return -1;
+        }
+        free(component_data);
+        component_data = NULL;
+    }
+    else {
+        data = component_data;
+        size = component_size;
+    }
+    
 	/* Using cached blobs is only available with 32-bit devices. */
 	if (client->image4supported & FLAG_RERESTORE) {
 		error("ERROR: Re-Restoring is only supported on 32-bit devices.\n");
 		exit(-1);
 	}
 
-	if (!client->image4supported && client->build_major > 8 && !(client->flags & FLAG_CUSTOM) && !strcmp(component, "iBEC")) {
+	if (!client->image4supported && client->build_major > 8 && !(client->flags & FLAG_CUSTOM) && !strcmp(component, "iBEC") && !client->isCustom) {
 		unsigned char* ticket = NULL;
 		unsigned int tsize = 0;
 		if (tss_response_get_ap_ticket(client->tss, &ticket, &tsize) < 0) {
@@ -206,6 +212,7 @@ int dfu_send_component(struct idevicerestore_client_t* client, plist_t build_ide
 		free(data);
 		data = newdata;
 		size += fillsize;
+        
 	}
 
 	info("Sending %s (%d bytes)...\n", component, size);

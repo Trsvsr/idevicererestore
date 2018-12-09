@@ -726,6 +726,7 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
         if (*(uint32_t*)(void*)(ramdiskData+0xC) == 0x0) {
             free(ticketData);
             free(ramdiskData);
+            client->isCustom = 1;
             goto rdcheckdone;
         }
         
