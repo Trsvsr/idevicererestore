@@ -697,6 +697,7 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
         if (build_identity_get_component_path(build_identity, component, &path) < 0) {
             error("ERROR: Unable to get path for component '%s'\n", component);
             free(path);
+            free(ticketData);
             goto rdcheckdone;
         }
         
@@ -710,21 +711,25 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
         
         if (ret < 0 || !(ramdiskSize && ramdiskData)) {
             error("ERROR: Unable to extract component: %s\n", component);
+            free(ticketData);
             goto rdcheckdone;
         }
         
         if (ramdiskSize < 0x14) {
-            printf("Ramdisk data was not large enough to be an Image3\n");
+            debug("Ramdisk data was not large enough to be an Image3\n");
             free(ramdiskData);
+            free(ticketData);
             goto rdcheckdone;
         }
         
         /* If an unsigned image is encountered, this is probably a custom restore. Move on from here. */
         if (*(uint32_t*)(void*)(ramdiskData+0xC) == 0x0) {
+            free(ticketData);
             free(ramdiskData);
             goto rdcheckdone;
         }
         
+        /* Create a buffer for the RestoreRamDisk digest */
         void *hashBuf = malloc(0x14);
         bzero(hashBuf, 0x14);
         
@@ -736,12 +741,13 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
         /* Search the ticket for the computed RestoreRamDisk digest */
         for (int i=0; i < (ticketSize-0x14); i++) {
             if (!memcmp(ticketData+i, hashBuf, 0x14)) {
-                printf("Found ramdisk hash in ticket\n");
+                debug("Found ramdisk hash in ticket\n");
                 foundHash = 1;
                 break;
             }
         }
         
+        /* Free the hash */
         free(hashBuf);
         
         /* If the RestoreRamDisk digest hash wasn't found in the APTicket, change the build identity and try again. */
@@ -750,34 +756,57 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
             /* Only change build identity if we haven't already */
             if (!tries) {
                 if (client->flags & FLAG_ERASE) {
+                    /* Remove FLAG_ERASE */
                     client->flags &= ~FLAG_ERASE;
+                    
+                    /* Set build_identity to Update */
                     build_identity = build_manifest_get_build_identity_for_model_with_restore_behavior(buildmanifest, client->device->hardware_model, "Update");
                     
+                    /* If build_identity comes back NULL, there might not be an Update identity in the manifest. */
                     if (!build_identity) {
+                        /* Set FLAG_ERASE */
                         client->flags |= FLAG_ERASE;
+                        
+                        /* Switch build identity back to Erase */
                         build_identity = build_manifest_get_build_identity_for_model_with_restore_behavior(buildmanifest, client->device->hardware_model, "Erase");
+                        
+                        /* Free the ticket data */
+                        free(ticketData);
+                        
+                        /* Continue from here */
                         goto rdcheckdone;
                     }
                 }
                 else {
+                    /* Set FLAG_ERASE */
                     client->flags |= FLAG_ERASE;
+                    
+                    /* Change build_identity to Erase */
                     build_identity = build_manifest_get_build_identity_for_model_with_restore_behavior(buildmanifest, client->device->hardware_model, "Erase");
                 }
             }
             
             /* Didn't find the hash in the attempted build_identities, set to Erase and continue the restore. */
             else {
-                
+                /* Set FLAG_ERASE */
                 client->flags |= FLAG_ERASE;
+                
+                /* Change build_identity to Erase */
                 build_identity = build_manifest_get_build_identity_for_model_with_restore_behavior(buildmanifest, client->device->hardware_model, "Erase");
                 
+                /* Free the ticket data */
+                free(ticketData);
+                
+                /* Continue from here */
                 goto rdcheckdone;
             }
             
-            printf("Didn't find ramdisk hash in ticket, checking for other ramdisk hash\n");
+            debug("Didn't find ramdisk hash in ticket, checking for other ramdisk hash\n");
             
+            /* Increment the tries counter */
             tries+=1;
             
+            /* Retry */
             goto retry;
         }
         
@@ -785,11 +814,10 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
     
 rdcheckdone:
     
-    /* print information about current build identity */
-    /* (we're printing after the ramdisk hash check to show the correct information, otherwise it's going to always default to Erase) */
+    /* The build_identity may have been changed, print information about it here */
     build_identity_print_information(build_identity);
     
-    /* verify if we have tss records if required */
+    /* Verify if we have tss records if required */
     if ((tss_enabled) && (client->tss == NULL)) {
         error("ERROR: Unable to proceed without a TSS record.\n");
         plist_free(buildmanifest);
@@ -970,9 +998,32 @@ rdcheckdone:
         }
         recovery_client_free(client);
         
-        /* this must be long enough to allow the device to run the iBEC */
-        /* FIXME: Probably better to detect if the device is back then */
-        sleep(7);
+        /* Wait 0.8s after attempting to boot the image */
+        usleep(800000);
+        
+        int mode = 0;
+        
+        /* Try checking for the device's mode for about 10 seconds until it's in recovery again */
+        for (int i=0; i < 20; i++) {
+            
+            /* Get the current mode */
+            mode = check_mode(client);
+            
+            /* If mode came back NULL, wait 0.5s and try again */
+            if (!mode) {
+                usleep(500000);
+                continue;
+            }
+            
+            /* If the current mode is not recovery, wait 0.5s and try again */
+            if (mode != MODE_RECOVERY) {
+                usleep(500000);
+                continue;
+            }
+            
+            /* Hello recovery */
+            break;
+        }
     }
     idevicerestore_progress(client, RESTORE_STEP_PREPARE, 0.5);
     
@@ -1050,6 +1101,147 @@ rdcheckdone:
                 printf("No BasebandFirmware in manifest\n");
                 goto bbdlout;
             }
+            
+            if (plist_get_node_type(bbfw_path) != PLIST_STRING) {
+                goto bbdownload;
+            }
+            
+            plist_get_string_val(bbfw_path, &bbfwpath);
+            
+            plist_t bbfw_digestIPSW = plist_access_path(build_identity, 2, "Manifest", "BasebandFirmware");
+            plist_t bbfw_digestNew = plist_access_path(build_identity2, 2, "Manifest", "BasebandFirmware");
+            
+            int bbfwIPSWDictCount = plist_dict_get_size(bbfw_digestIPSW);
+            int bbfwNewDictCount = plist_dict_get_size(bbfw_digestNew);
+            
+            if (bbfwIPSWDictCount != bbfwNewDictCount) {
+                goto bbdownload;
+            }
+            
+            if (bbfwNewDictCount == 0) {
+                goto bbdlout;
+            }
+            
+            plist_dict_iter iter = 0;
+            plist_dict_new_iter(bbfw_digestIPSW, &iter);
+            
+            for (int i=0; i < bbfwNewDictCount; i++) {
+                void *item = 0;
+                plist_t itemPlistIPSW = 0;
+                plist_dict_next_item(bbfw_digestIPSW, iter, (char**)&item, &itemPlistIPSW);
+                
+                if (!item) {
+                    continue;
+                }
+                
+                mode_t currentItemModeIPSW = plist_get_node_type(itemPlistIPSW);
+                
+                plist_t itemPlistNew = plist_dict_get_item(bbfw_digestNew, item);
+                
+                if (!itemPlistNew) {
+                    debug("Couldn't find %s in new manifest\n", item);
+                    free(item);
+                    goto bbdownload;
+                }
+                
+                mode_t currentItemModeNew = plist_get_node_type(itemPlistNew);
+                
+                if (currentItemModeIPSW != currentItemModeNew) {
+                    debug("%s does not match the type in new manifest\n", item);
+                    free(item);
+                    goto bbdownload;
+                }
+                
+                switch (currentItemModeIPSW) {
+                    case PLIST_DATA:;
+                        
+                        void *currentItemIPSW = 0;
+                        uint64_t currentItemSizeIPSW = 0;
+                        void *currentItemNew = 0;
+                        uint64_t currentItemSizeNew = 0;
+                        
+                        plist_get_data_val(itemPlistIPSW, (char**)&currentItemIPSW, &currentItemSizeIPSW);
+                        plist_get_data_val(itemPlistNew, (char**)&currentItemNew, &currentItemSizeNew);
+                        
+                        if (currentItemSizeIPSW != currentItemSizeNew) {
+                            debug("IPSW %s size did not match the new manifest's entry\n", item);
+                            free(item);
+                            goto bbdownload;
+                        }
+                        
+                        if (!memcmp(currentItemIPSW, currentItemNew, currentItemSizeIPSW)) {
+                            debug("IPSW %s matches new manifest item\n", item);
+                            free(currentItemIPSW);
+                            free(currentItemNew);
+                            free(item);
+                            continue;
+                        }
+                        
+                        free(currentItemIPSW);
+                        free(currentItemNew);
+                        free(item);
+                        
+                        goto bbdownload;
+                        
+                    case PLIST_UINT:;
+                        
+                        uint64_t currentUintItemIPSW = 0;
+                        uint64_t currentUintItemNew = 0;
+                        
+                        plist_get_uint_val(itemPlistIPSW, &currentUintItemIPSW);
+                        plist_get_uint_val(itemPlistNew, &currentUintItemNew);
+                        
+                        if (currentUintItemIPSW == currentUintItemNew) {
+                            debug("IPSW %s matches new manifest item\n", item);
+                            free(item);
+                            continue;
+                        }
+                        
+                        printf("IPSW %s did not match manifest item\n", item);
+                        
+                        free(item);
+                        goto bbdownload;
+                        
+                    case PLIST_DICT:;
+                        
+                        if (!strcmp(item, "Info")) {
+                            free(item);
+                            continue;
+                        }
+                        
+                    default:
+                        debug("Unhandled item %s\n", item);
+                        free(item);
+                        goto bbdownload;
+                }
+                
+            }
+            
+            /* All items in the IPSW bbfw entry match the new manifest, use the bbfw from the ipsw */
+            debug("Provided IPSW BasebandFirmware matches the entry found in new manifest, using local file\n");
+            
+            void *bbfwData = 0;
+            size_t bbfwSz = 0;
+            
+            extract_component(client->ipsw, bbfwpath, (unsigned char**)&bbfwData, (unsigned int*)&bbfwSz);
+            
+            if (!bbfwSz || !bbfwData) {
+                debug("Failed to extract BasebandFirmware from IPSW\n");
+                goto bbdownload;
+            }
+            
+            client->basebandPath = "bbfw.tmp";
+            
+            FILE *bbfwFd = fopen(client->basebandPath, "w");
+            fwrite(bbfwData, bbfwSz, 1, bbfwFd);
+            fflush(bbfwFd);
+            fclose(bbfwFd);
+            
+            free(bbfwData);
+            
+            goto bbdlout;
+            
+        bbdownload:
             
             if (bbfw_path || plist_get_node_type(bbfw_path) != PLIST_STRING) {
                 printf("Downloading baseband firmware.\n");

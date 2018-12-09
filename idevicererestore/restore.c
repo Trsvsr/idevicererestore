@@ -1844,7 +1844,7 @@ int restore_send_baseband_data(restored_client_t restore, struct idevicerestore_
 		else if (major == 14)
 			build_identity2 = build_manifest_get_build_identity(buildmanifest2, indexCount);
 		else build_identity2 = build_manifest_get_build_identity(buildmanifest2, 0);
-		//free(opl);
+        
 	}
 	
 	if (!bbfw_path || plist_get_node_type(bbfw_path) != PLIST_STRING) {
@@ -1852,8 +1852,10 @@ int restore_send_baseband_data(restored_client_t restore, struct idevicerestore_
 		plist_free(response);
 		return -1;
 	}
-	char* bbfwpath = NULL;
-	plist_get_string_val(bbfw_path, &bbfwpath);	
+	
+    char* bbfwpath = NULL;
+	plist_get_string_val(bbfw_path, &bbfwpath);
+    
 	if (!bbfwpath) {
 		error("ERROR: Unable to get baseband path\n");
 		plist_free(response);
@@ -1867,25 +1869,6 @@ int restore_send_baseband_data(restored_client_t restore, struct idevicerestore_
 		error("ERROR: can't get URL for latest firmware\n");
 		return -1;
 	}
-	
-	// extract baseband firmware to temp file
-	//bbfwtmp = tempnam(NULL, client->udid);
-	
-#if 0
-    if (!client->basebandPath) {
-		bbfwtmp = "bbfw.tmp";
-	}
-	else {
-		bbfwtmp = client->basebandPath;
-	}
-	
-	if (!bbfwtmp) {
-		error("WARNING: Could not generate temporary filename, using bbfw.tmp\n");
-		bbfwtmp = strdup("bbfw.tmp");
-	}
-#endif
-	
-#if 1
 	
     if (client->basebandPath) {
 		const char *device = client->device->product_type;
@@ -1936,7 +1919,6 @@ int restore_send_baseband_data(restored_client_t restore, struct idevicerestore_
 			partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31187-20150812-751A8A7E-3C8F-11E5-B300-B71A3A53DB92/iPad3,6_8.4.1_12H321_Restore.ipsw", bbfwpath, client->basebandPath);
 		}
 	}
-#endif
     
     FILE *bb = fopen(client->basebandPath, "r");
     
