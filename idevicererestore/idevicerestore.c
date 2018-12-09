@@ -582,8 +582,6 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
     plist_t buildmanifest2 = NULL;
     plist_t build_identity2 = NULL;
     
-    /* print information about current build identity */
-    build_identity_print_information(build_identity);
     
     idevicerestore_progress(client, RESTORE_STEP_PREPARE, 0.0);
     /* retrieve shsh blobs if required */
@@ -786,6 +784,10 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
     }
     
 rdcheckdone:
+    
+    /* print information about current build identity */
+    /* (we're printing after the ramdisk hash check to show the correct information, otherwise it's going to always default to Erase) */
+    build_identity_print_information(build_identity);
     
     /* verify if we have tss records if required */
     if ((tss_enabled) && (client->tss == NULL)) {
