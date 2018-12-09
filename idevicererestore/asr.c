@@ -308,7 +308,7 @@ int asr_handle_oob_data_request(asr_client_t asr, plist_t packet, FILE* file) {
 		return -1;
 	}
 
-	if (asr_send_buffer(asr, oob_data, oob_length) < 0) {
+	if (asr_send_buffer(asr, oob_data, (uint32_t)oob_length) < 0) {
 		error("ERROR: Unable to send OOB data to ASR\n");
 		free(oob_data);
 		return -1;

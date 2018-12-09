@@ -884,7 +884,7 @@ plist_t tss_request_send(plist_t tss_request, const char* server_url_string) {
 
 	uint32_t tss_size = 0;
 	plist_t tss_response = NULL;
-	tss_size = response->length - (tss_data - response->content);
+	tss_size = (uint32_t)(response->length - (tss_data - response->content));
 	plist_from_xml(tss_data, tss_size, &tss_response);
 	free(response->content);
 	free(response);

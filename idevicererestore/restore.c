@@ -731,6 +731,7 @@ int restore_handle_bb_update_status_msg(restored_client_t client, plist_t msg)
 				sval = NULL;
 			}
 		}
+        
 	} else {
 		info("Updating Baseband in progress...\n");
 	}
@@ -1174,6 +1175,7 @@ static const char* restore_get_bbfw_fn_for_element(const char* elem)
 static int restore_sign_bbfw(const char* bbfwtmp, plist_t bbtss, const unsigned char* bb_nonce)
 {
 	int res = -1;
+    
 
 	// check for BBTicket in result
 	plist_t bbticket = plist_dict_get_item(bbtss, "BBTicket");
@@ -1365,11 +1367,13 @@ static int restore_sign_bbfw(const char* bbfwtmp, plist_t bbtss, const unsigned 
 			if (fn) {
 				char* ext = strrchr(fn, '.');
 				if (ext && (!strcmp(ext, ".fls") || !strcmp(ext, ".mbn") || !strcmp(ext, ".elf") || !strcmp(ext, ".bin"))) {
+                    //printf("keeping %s\n", fn);
 					keep = 1;
 				}
 			}
 		}
-		if (!keep && is_fls) {
+		if (!keep && bb_nonce) {
+            //printf("deleting %s\n", zip_get_name(za, i, 0));
 			zip_delete(za, i);
 		}
 	}
@@ -1471,6 +1475,7 @@ static int restore_sign_bbfw(const char* bbfwtmp, plist_t bbtss, const unsigned 
 			}
 			blob = NULL;
 
+            //printf("%p %p\n", za, zs);
 			if (zip_add(za, "bbticket.der", zs) == -1) {
 				error("ERROR: could not add bbticket.der to archive\n");
 				goto leave;
@@ -1773,6 +1778,7 @@ int restore_send_baseband_data(restored_client_t restore, struct idevicerestore_
 			debug_plist(request);
 
 		info("Sending Baseband TSS request...\n");
+        
 		response = tss_request_send(request, client->tss_url);
 		plist_free(request);
 		plist_free(parameters);
@@ -1862,10 +1868,11 @@ int restore_send_baseband_data(restored_client_t restore, struct idevicerestore_
 		return -1;
 	}
 	
-	
 	// extract baseband firmware to temp file
 	//bbfwtmp = tempnam(NULL, client->udid);
-	if (!client->basebandPath) {
+	
+#if 0
+    if (!client->basebandPath) {
 		bbfwtmp = "bbfw.tmp";
 	}
 	else {
@@ -1876,11 +1883,11 @@ int restore_send_baseband_data(restored_client_t restore, struct idevicerestore_
 		error("WARNING: Could not generate temporary filename, using bbfw.tmp\n");
 		bbfwtmp = strdup("bbfw.tmp");
 	}
+#endif
 	
-	if (!client->basebandPath) {
-		partialzip_download_file(fwurl, bbfwpath, "bbfw.tmp");
-	}
-	else {
+#if 1
+	
+    if (client->basebandPath) {
 		const char *device = client->device->product_type;
 		
 		plist_t node = NULL;
@@ -1891,7 +1898,7 @@ int restore_send_baseband_data(restored_client_t restore, struct idevicerestore_
 		
 		node = plist_dict_get_item(buildmanifest2, "ProductBuildVersion");
 		plist_get_string_val(node, &build);
-		
+        
 		if (!strcmp(device, "iPhone4,1") && !strcmp(build, "10B329")) {
 			partialzip_download_file("http://appldnld.apple.com/iOS6.1/091-2611.20130319.Fr54r/iPhone4,1_6.1.3_10B329_Restore.ipsw", bbfwpath, client->basebandPath);
 		}
@@ -1929,14 +1936,23 @@ int restore_send_baseband_data(restored_client_t restore, struct idevicerestore_
 			partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31187-20150812-751A8A7E-3C8F-11E5-B300-B71A3A53DB92/iPad3,6_8.4.1_12H321_Restore.ipsw", bbfwpath, client->basebandPath);
 		}
 	}
-	
-	if (!client->flags & FLAG_RERESTORE) {
+#endif
+    
+    FILE *bb = fopen(client->basebandPath, "r");
+    
+    if (!bb) {
+        partialzip_download_file(fwurl, bbfwpath, client->basebandPath);
+    }
+    
+#if 0
+	if (!(client->flags & FLAG_RERESTORE)) {
 		if (ipsw_extract_to_file(client->ipsw, bbfwpath, bbfwtmp) != 0) {
 			error("ERROR: Unable to extract baseband firmware from ipsw\n");
 			plist_free(response);
 			return -1;
 		}
 	}
+#endif
 
 	if (bb_nonce && !client->restore->bbtss) {
 		// keep the response for later requests
@@ -1944,7 +1960,7 @@ int restore_send_baseband_data(restored_client_t restore, struct idevicerestore_
 		response = NULL;
 	}
 
-	res = restore_sign_bbfw(bbfwtmp, (client->restore->bbtss) ? client->restore->bbtss : response, bb_nonce);
+	res = restore_sign_bbfw(client->basebandPath, (client->restore->bbtss) ? client->restore->bbtss : response, bb_nonce);
 	if (res != 0) {
 		goto leave;
 	}
@@ -1952,7 +1968,7 @@ int restore_send_baseband_data(restored_client_t restore, struct idevicerestore_
 	res = -1;
 	
 	size_t sz = 0;
-	if (read_file(bbfwtmp, (void**)&buffer, &sz) < 0) {
+	if (read_file(client->basebandPath, (void**)&buffer, &sz) < 0) {
 		error("ERROR: could not read updated bbfw archive\n");
 		goto leave;
 	}
@@ -1975,7 +1991,7 @@ int restore_send_baseband_data(restored_client_t restore, struct idevicerestore_
 leave:
 	plist_free(dict);
 	free(buffer);
-	if (bbfwtmp) {
+	if (client->basebandPath) {
 		//remove(bbfwtmp);
 		//free(bbfwtmp);
 	}
@@ -2426,17 +2442,21 @@ int restore_device(struct idevicerestore_client_t* client, plist_t build_identit
 		client->restore->bbtss = plist_copy(client->tss);
 	}
 
-	fdr_client_t fdr_control_channel = NULL;
-	info("Starting FDR listener thread\n");
-	if (!fdr_connect(device, FDR_CTRL, &fdr_control_channel)) {
-		if(thread_new(&fdr_thread, fdr_listener_thread, fdr_control_channel)) {
-			error("ERROR: Failed to start FDR listener thread\n");
-			fdr_thread = (thread_t)NULL; /* undefined after failure */
-		}
-	} else {
-		error("ERROR: Failed to start FDR Ctrl channel\n");
-		// FIXME: We might want to return failure here as it will likely fail
-	}
+    fdr_client_t fdr_control_channel = NULL;
+    
+    /* We should probably just remove fdr stuff from this fork altogether since no 32 bit devices have it... */
+    if (!(client->flags & FLAG_RERESTORE)) {
+        info("Starting FDR listener thread\n");
+        if (!fdr_connect(device, FDR_CTRL, &fdr_control_channel)) {
+            if(thread_new(&fdr_thread, fdr_listener_thread, fdr_control_channel)) {
+                error("ERROR: Failed to start FDR listener thread\n");
+                fdr_thread = (thread_t)NULL; /* undefined after failure */
+            }
+        } else {
+            error("ERROR: Failed to start FDR Ctrl channel\n");
+            // FIXME: We might want to return failure here as it will likely fail
+        }
+    }
 
 	plist_t opts = plist_new_dict();
 	// FIXME: required?
@@ -2585,6 +2605,15 @@ int restore_device(struct idevicerestore_client_t* client, plist_t build_identit
 		// baseband update message
 		else if (!strcmp(type, "BBUpdateStatusMsg")) {
 			err = restore_handle_bb_update_status_msg(restore, message);
+            
+            if (client->basebandPath) {
+                FILE *bbfw = fopen(client->basebandPath, "r");
+                
+                if (bbfw) {
+                    fclose(bbfw);
+                    remove(client->basebandPath);
+                }
+            }
 		}
 
 		// there might be some other message types i'm not aware of, but I think
@@ -2600,13 +2629,15 @@ int restore_device(struct idevicerestore_client_t* client, plist_t build_identit
 		message = NULL;
 	}
 
-	if (fdr_control_channel) {
-		fdr_disconnect(fdr_control_channel);
-		if (fdr_thread) {
-			thread_join(fdr_thread);
-		}
-		fdr_control_channel = NULL;
-	}
+    if (!(client->flags & FLAG_RERESTORE)) {
+        if (fdr_control_channel) {
+            fdr_disconnect(fdr_control_channel);
+            if (fdr_thread) {
+                thread_join(fdr_thread);
+            }
+            fdr_control_channel = NULL;
+        }
+    }
 
 	restore_client_free(client);
 	return err;

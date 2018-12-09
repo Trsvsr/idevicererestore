@@ -154,7 +154,7 @@ int write_file(const char* filename, const void* data, size_t size) {
 		return -1;
 	}
 
-	return size;
+	return (int)size;
 }
 
 int read_file(const char* filename, void** data, size_t* size) {

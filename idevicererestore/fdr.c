@@ -175,7 +175,7 @@ int fdr_poll_and_handle_message(fdr_client_t fdr)
 void *fdr_listener_thread(void *cdata)
 {
 	fdr_client_t fdr = cdata;
-	int res;
+	int res = 0;
 
 	while (fdr && fdr->connection) {
 		debug("FDR %p waiting for message...\n", fdr);

@@ -56,7 +56,7 @@
 
 #define VERSION_XML "version.xml"
 
-
+#include <openssl/sha.h>
 
 #ifndef IDEVICERESTORE_NOMAIN
 static struct option longopts[] = {
@@ -165,8 +165,16 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
     
     if (client->flags & FLAG_RERESTORE) {
         if (!(client->flags & FLAG_ERASE) && !(client->flags & FLAG_UPDATE)) {
+            
+            /* Set FLAG_ERASE for now, code later on handles switching to FLAG_UPDATE if needed. */
+            
+            client->flags |= FLAG_ERASE;
+            
+#if 0
             error("ERROR: FLAG_RERESTORE must be used with either FLAG_ERASE or FLAG_UPDATE\n");
             return -1;
+#endif
+            
         }
     }
     
@@ -660,6 +668,119 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
         }
     }
     
+    /* For a re-restore, check the APTicket for a hash of the RestoreRamdisk in the BuildManifest,
+     * try to automatically detect if it contains an Erase or Update ramdisk hash, then
+     * update the client flags if required.
+     */
+    if (tss_enabled && (client->flags & FLAG_RERESTORE)) {
+        
+        unsigned int ticketSize = 0;
+        unsigned char *ticketData = 0;
+        
+        int ret = 0;
+        
+        /* Try to get the APTicket from the TSS response */
+        ret = tss_response_get_ap_ticket(client->tss, &ticketData, &ticketSize);
+        
+        /* Check if an error was returned, or if no data was returned */
+        if (!(ticketSize && ticketData) || ret) {
+            printf("Error getting APTicket from TSS response\n");
+            goto rdcheckdone;
+        }
+        
+        int tries = 0;
+        
+    retry:;
+        
+        char *component = "RestoreRamDisk";
+        char *path = 0;
+        
+        /* Try to get the path of the RestoreRamDisk for the current build identity */
+        if (build_identity_get_component_path(build_identity, component, &path) < 0) {
+            error("ERROR: Unable to get path for component '%s'\n", component);
+            free(path);
+            goto rdcheckdone;
+        }
+        
+        unsigned char *ramdiskData = 0;
+        unsigned int ramdiskSize = 0;
+        
+        /* Try to get a buffer with the RestoreRamdisk */
+        ret = extract_component(client->ipsw, path, &ramdiskData, &ramdiskSize);
+        
+        free(path);
+        
+        if (ret < 0 || !(ramdiskSize && ramdiskData)) {
+            error("ERROR: Unable to extract component: %s\n", component);
+            goto rdcheckdone;
+        }
+        
+        if (ramdiskSize < 0x14) {
+            printf("Ramdisk data was not large enough to be an Image3\n");
+            free(ramdiskData);
+            goto rdcheckdone;
+        }
+        
+        void *hashBuf = malloc(0x14);
+        bzero(hashBuf, 0x14);
+        
+        /* Hash the signed Image3 contents */
+        SHA1(ramdiskData+0xC, (ramdiskSize-0xC), hashBuf);
+        
+        int foundHash = 0;
+        
+        /* Search the ticket for the computed RestoreRamDisk digest */
+        for (int i=0; i < (ticketSize-0x14); i++) {
+            if (!memcmp(ticketData+i, hashBuf, 0x14)) {
+                printf("Found ramdisk hash in ticket\n");
+                foundHash = 1;
+                break;
+            }
+        }
+        
+        free(hashBuf);
+        
+        /* If the RestoreRamDisk digest hash wasn't found in the APTicket, change the build identity and try again. */
+        if (!foundHash) {
+            
+            /* Only change build identity if we haven't already */
+            if (!tries) {
+                if (client->flags & FLAG_ERASE) {
+                    client->flags &= ~FLAG_ERASE;
+                    build_identity = build_manifest_get_build_identity_for_model_with_restore_behavior(buildmanifest, client->device->hardware_model, "Update");
+                    
+                    if (!build_identity) {
+                        client->flags |= FLAG_ERASE;
+                        build_identity = build_manifest_get_build_identity_for_model_with_restore_behavior(buildmanifest, client->device->hardware_model, "Erase");
+                        goto rdcheckdone;
+                    }
+                }
+                else {
+                    client->flags |= FLAG_ERASE;
+                    build_identity = build_manifest_get_build_identity_for_model_with_restore_behavior(buildmanifest, client->device->hardware_model, "Erase");
+                }
+            }
+            
+            /* Didn't find the hash in the attempted build_identities, set to Erase and continue the restore. */
+            else {
+                
+                client->flags |= FLAG_ERASE;
+                build_identity = build_manifest_get_build_identity_for_model_with_restore_behavior(buildmanifest, client->device->hardware_model, "Erase");
+                
+                goto rdcheckdone;
+            }
+            
+            printf("Didn't find ramdisk hash in ticket, checking for other ramdisk hash\n");
+            
+            tries+=1;
+            
+            goto retry;
+        }
+        
+    }
+    
+rdcheckdone:
+    
     /* verify if we have tss records if required */
     if ((tss_enabled) && (client->tss == NULL)) {
         error("ERROR: Unable to proceed without a TSS record.\n");
@@ -910,17 +1031,23 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
         else if (major == 14)
             build_identity2 = build_manifest_get_build_identity(buildmanifest2, indexCount);
         else build_identity2 = build_manifest_get_build_identity(buildmanifest2, 0);
-        //free(opl);
         
         /* if buildmanifest not specified, download the baseband firmware */
         if (!client->manifestPath) {
             char* bbfwpath = NULL;
             printf("Device: %s\n", device);
             plist_t bbfw_path = plist_access_path(build_identity2, 4, "Manifest", "BasebandFirmware", "Info", "Path");
+            
+            if (!bbfw_path) {
+                printf("No BasebandFirmware in manifest\n");
+                goto bbdlout;
+            }
+            
             if (bbfw_path || plist_get_node_type(bbfw_path) != PLIST_STRING) {
                 printf("Downloading baseband firmware.\n");
                 plist_get_string_val(bbfw_path, &bbfwpath);
                 partialzip_download_file(fwurl, bbfwpath, "bbfw.tmp");
+                client->basebandPath = "bbfw.tmp";
             }
         }
         else {
@@ -928,6 +1055,8 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
             printf("Using pre-defined BuildManifest.\n");
         }
     }
+    
+bbdlout:
     
     if (!client->image4supported && (client->build_major > 8)) {
         // we need another tss request with nonce.
@@ -1396,7 +1525,7 @@ int get_ap_nonce(struct idevicerestore_client_t* client, unsigned char** nonce, 
     
     int i = 0;
     for (i = 0; i < *nonce_size; i++) {
-        info("%02x ", (*nonce)[i]);
+        info("%02x", (*nonce)[i]);
     }
     info("\n");
     
@@ -1599,7 +1728,8 @@ int get_tss_response(struct idevicerestore_client_t* client, plist_t build_ident
     else if (client->flags & FLAG_RERESTORE) {
         info("Attempting to check Cydia TSS server for SHSH blobs\n");
         client->tss_url = strdup("http://cydia.saurik.com/TSS/controller?action=2");
-    } else {
+    }
+    else {
         info("Trying to fetch new SHSH blob\n");
     }
     
