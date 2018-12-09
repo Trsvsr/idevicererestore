@@ -721,6 +721,12 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
             goto rdcheckdone;
         }
         
+        /* If an unsigned image is encountered, this is probably a custom restore. Move on from here. */
+        if (*(uint32_t*)(void*)(ramdiskData+0xC) == 0x0) {
+            free(ramdiskData);
+            goto rdcheckdone;
+        }
+        
         void *hashBuf = malloc(0x14);
         bzero(hashBuf, 0x14);
         
