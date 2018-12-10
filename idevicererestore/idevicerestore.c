@@ -1058,7 +1058,7 @@ rdcheckdone:
         if (!client->manifestPath) {
             if (client->build_major <= 11) {
                 if (!strcmp(client->device->product_type, "iPhone4,1")) {
-                    partialzip_download_file("http://appldnld.apple.com/iOS6.1/091-2448.20130311.vg0py/0dca7ebb81feea4c87049133d70a5a81a7eea3f9.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
+                    partialzip_download_file("http://appldnld.apple.com/iOS6.1/091-3360.20130311.BmfR4/com_apple_MobileAsset_SoftwareUpdate/82b056c7a9e455ad4f00d1b5169e5b56ab8c2cc7.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
                 }
                 else if (!strcmp(client->device->product_type, "iPad2,2")) {
                     partialzip_download_file("http://appldnld.apple.com/iOS6.1/091-3360.20130311.BmfR4/com_apple_MobileAsset_SoftwareUpdate/bbfca2293088712e39f58caf76708fbd6a53e7a7.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
