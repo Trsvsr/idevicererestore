@@ -393,8 +393,12 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
     info("Product Build: %s Major: %d\n", client->build, client->build_major);
     
     client->image4supported = is_image4_supported(client);
-    info("Device supports Image4: %s\n", (client->image4supported) ? "true" : "false");
+    debug("Device supports Image4: %s\n", (client->image4supported) ? "true" : "false");
     
+    if (client->image4supported) {
+        error("This copy of iDeviceReRestore does not support Image4 devices. Use iDeviceRestore instead (https://github.com/libimobiledevice/idevicerestore)\n");
+        return -1;
+    }
     
     if (client->flags & FLAG_CUSTOM) {
         /* prevent signing custom firmware */
@@ -666,7 +670,7 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
         }
     }
     
-    /* For a re-restore, check the APTicket for a hash of the RestoreRamdisk in the BuildManifest,
+    /* For a re-restore, check the APTicket for a hash of the RestoreRamDisk in the BuildManifest,
      * try to automatically detect if it contains an Erase or Update ramdisk hash, then
      * update the client flags if required.
      */
@@ -696,7 +700,11 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
         /* Try to get the path of the RestoreRamDisk for the current build identity */
         if (build_identity_get_component_path(build_identity, component, &path) < 0) {
             error("ERROR: Unable to get path for component '%s'\n", component);
-            free(path);
+            
+            if (path) {
+                free(path);
+            }
+            
             free(ticketData);
             goto rdcheckdone;
         }
@@ -704,7 +712,7 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
         unsigned char *ramdiskData = 0;
         unsigned int ramdiskSize = 0;
         
-        /* Try to get a buffer with the RestoreRamdisk */
+        /* Try to get a buffer with the RestoreRamDisk */
         ret = extract_component(client->ipsw, path, &ramdiskData, &ramdiskSize);
         
         free(path);
@@ -722,7 +730,7 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
             goto rdcheckdone;
         }
         
-        /* If an unsigned image is encountered, this is probably a custom restore. Move on from here. */
+        /* If an unsigned RestoreRamDisk image is encountered, this is probably a custom restore. Move on from here. */
         if (*(uint32_t*)(void*)(ramdiskData+0xC) == 0x0) {
             free(ticketData);
             free(ramdiskData);
@@ -732,10 +740,17 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
         
         /* Create a buffer for the RestoreRamDisk digest */
         void *hashBuf = malloc(0x14);
+        
+        if (!hashBuf) {
+            goto rdcheckdone;
+        }
+        
         bzero(hashBuf, 0x14);
         
         /* Hash the signed Image3 contents */
         SHA1(ramdiskData+0xC, (ramdiskSize-0xC), hashBuf);
+        
+        free(ramdiskData);
         
         int foundHash = 0;
         
@@ -797,6 +812,9 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
                 
                 /* Free the ticket data */
                 free(ticketData);
+                
+                /* We can probably safely assume here that this is a custom restore if we haven't found the RestoreRamDisk hashes in the ticket */
+                client->isCustom = 1;
                 
                 /* Continue from here */
                 goto rdcheckdone;
