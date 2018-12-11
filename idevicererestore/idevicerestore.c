@@ -1056,76 +1056,101 @@ rdcheckdone:
         }
         
         if (!client->manifestPath) {
+            /* Download iOS 6.1.3 OTA BuildManifest if iOS 7.x or lower is being installed */
             if (client->build_major <= 11) {
+                /* Check if the device is an iPhone 4S */
                 if (!strcmp(client->device->product_type, "iPhone4,1")) {
                     partialzip_download_file("http://appldnld.apple.com/iOS6.1/091-3360.20130311.BmfR4/com_apple_MobileAsset_SoftwareUpdate/82b056c7a9e455ad4f00d1b5169e5b56ab8c2cc7.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
                 }
+                /* Check if the device is an iPad 2 (GSM) */
                 else if (!strcmp(client->device->product_type, "iPad2,2")) {
                     partialzip_download_file("http://appldnld.apple.com/iOS6.1/091-3360.20130311.BmfR4/com_apple_MobileAsset_SoftwareUpdate/bbfca2293088712e39f58caf76708fbd6a53e7a7.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
                 }
+                /* Check if the device is an iPad 2 (CDMA) */
                 else if (!strcmp(client->device->product_type, "iPad2,3")) {
                     partialzip_download_file("http://appldnld.apple.com/iOS6.1/091-3360.20130311.BmfR4/com_apple_MobileAsset_SoftwareUpdate/e1b90d0d74353756962990b9df74a2416d9b058f.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
                 }
                 else {
+                    /* Download latest BuildManifest if the device is not an iPhone 4S or iPad 2 */
                     partialzip_download_file(fwurl, "BuildManifest.plist", "BuildManifest_New.plist");
                 }
             }
+            /* Download iOS 8.4.1 OTA BuildManifest if iOS 8.x is being installed */
             else if (client->build_major == 12) {
+                /* Check if the device is an iPhone 4S */
                 if (!strcmp(client->device->product_type, "iPhone4,1")) {
                     partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31215-20150812-CFBCEB38-3D03-11E5-BCA3-03413A53DB92/com_apple_MobileAsset_SoftwareUpdate/811881b14b0e940233c77e7fc5f9719c7944c132.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
                 }
+                /* Check if the device is an iPhone 5 (GSM) */
                 else if (!strcmp(client->device->product_type, "iPhone5,1")) {
                     partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31255-20150812-397905A2-3D04-11E5-A980-F7443A53DB92/com_apple_MobileAsset_SoftwareUpdate/b05418a539a1b91fbfc56ea19863dacc88563d79.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
                 }
+                /* Check if the device is an iPhone 5 (Global) */
                 else if (!strcmp(client->device->product_type, "iPhone5,2")) {
                     partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31072-20150812-BBD41004-3D00-11E5-B0D8-0C303A53DB92/com_apple_MobileAsset_SoftwareUpdate/46b2fa23b1d819a4bebfd424cc7078936c3e2d6e.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
                 }
+                /* Check if the device is an iPad 2 (GSM) */
                 else if (!strcmp(client->device->product_type, "iPad2,2")) {
                     partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31146-20150812-33AD9B20-3D03-11E5-A2FB-CD3A3A53DB92/com_apple_MobileAsset_SoftwareUpdate/ca4d6ad210c5a4156e8564c60d336bd2b701ca9a.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
                 }
+                /* Check if the device is an iPad 2 (CDMA) */
                 else if (!strcmp(client->device->product_type, "iPad2,3")) {
                     partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31090-20150812-03686E1A-3D01-11E5-80C0-77323A53DB92/com_apple_MobileAsset_SoftwareUpdate/c121690f77afbd762b0c993ada682c4ce2e20704.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
                 }
+                /* Check if the device is an iPad mini (GSM) */
                 else if (!strcmp(client->device->product_type, "iPad2,6")) {
                     partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-30997-20150812-99F14F9E-3CFE-11E5-91E9-72273A53DB92/com_apple_MobileAsset_SoftwareUpdate/78d4991d74ec2f0a82eefb817fb228f798b27923.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
                 }
+                /* Check if the device is an iPad mini (CDMA) */
                 else if (!strcmp(client->device->product_type, "iPad2,7")) {
                     partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31110-20150812-45750DAE-3D01-11E5-B0D1-DD343A53DB92/com_apple_MobileAsset_SoftwareUpdate/927f3aa82bac01147aca334104c7fc4d7f18cd0d.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
                 }
+                /* Check if the device is an iPad 3 (CDMA) */
                 else if (!strcmp(client->device->product_type, "iPad3,2")) {
                     partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31082-20150812-E0B48A66-3D00-11E5-A10B-52313A53DB92/com_apple_MobileAsset_SoftwareUpdate/f2e239e008b9d6354d21ef28a22731ebd53b6949.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
                 }
+                /* Check if the device is an iPad 3 (GSM) */
                 else if (!strcmp(client->device->product_type, "iPad3,3")) {
                     partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31052-20150812-907C7F22-3D00-11E5-AF16-F22D3A53DB92/com_apple_MobileAsset_SoftwareUpdate/eeeb6a55a5c754da89bdec813113eef18fc52e8f.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
                 }
+                /* Check if the device is an iPad 4 (GSM) */
                 else if (!strcmp(client->device->product_type, "iPad3,5")) {
                     partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31063-20150812-A647D798-3D00-11E5-AC3E-4E2F3A53DB92/com_apple_MobileAsset_SoftwareUpdate/eefcdf6c2c55f9280a643d5da35039018f162c29.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
                 }
+                /* Check if the device is an iPad 4 (CDMA) */
                 else if (!strcmp(client->device->product_type, "iPad3,6")) {
                     partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31343-20150812-21F639F2-3D06-11E5-BC83-3D4F3A53DB92/com_apple_MobileAsset_SoftwareUpdate/f37464602fd52f2468b0146e17a6d117b201d0bf.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
                 }
                 else {
+                    /* Download latest manifest if not any of the above devices */
                     partialzip_download_file(fwurl, "BuildManifest.plist", "BuildManifest_New.plist");
                 }
             }
+            /* Download iOS 8.4.1 OTA BuildManifest on A6(X) devices (iPhone 5, iPad 4) if iOS 9.x is being installed */
             else if (client->build_major == 13) {
+                /* Check if the device is an iPhone 5 (GSM) */
                 if (!strcmp(client->device->product_type, "iPhone5,1")) {
                     partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31255-20150812-397905A2-3D04-11E5-A980-F7443A53DB92/com_apple_MobileAsset_SoftwareUpdate/b05418a539a1b91fbfc56ea19863dacc88563d79.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
                 }
+                /* Check if the device is an iPhone 5 (Global) */
                 else if (!strcmp(client->device->product_type, "iPhone5,2")) {
                     partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31072-20150812-BBD41004-3D00-11E5-B0D8-0C303A53DB92/com_apple_MobileAsset_SoftwareUpdate/46b2fa23b1d819a4bebfd424cc7078936c3e2d6e.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
                 }
+                /* Check if the device is an iPad 4 (GSM) */
                 else if (!strcmp(client->device->product_type, "iPad3,5")) {
                     partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31063-20150812-A647D798-3D00-11E5-AC3E-4E2F3A53DB92/com_apple_MobileAsset_SoftwareUpdate/eefcdf6c2c55f9280a643d5da35039018f162c29.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
                 }
+                /* Check if the device is an iPad 4 (CDMA) */
                 else if (!strcmp(client->device->product_type, "iPad3,6")) {
                     partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31343-20150812-21F639F2-3D06-11E5-BC83-3D4F3A53DB92/com_apple_MobileAsset_SoftwareUpdate/f37464602fd52f2468b0146e17a6d117b201d0bf.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
                 }
                 else {
+                    /* Download latest manifest if not any of the above devices */
                     partialzip_download_file(fwurl, "BuildManifest.plist", "BuildManifest_New.plist");
                 }
             }
             else {
+                /* Download latest manifest if not installing iOS 7.x, iOS 8.x, or an A6(X) device installing iOS 9.x */
                 partialzip_download_file(fwurl, "BuildManifest.plist", "BuildManifest_New.plist");
             }
             client->otamanifest = "BuildManifest_New.plist";
@@ -1336,6 +1361,7 @@ rdcheckdone:
             if (bbfw_path || plist_get_node_type(bbfw_path) != PLIST_STRING) {
                 printf("Downloading baseband firmware.\n");
                 plist_get_string_val(bbfw_path, &bbfwpath);
+                /* Download iOS 6.1.3 BasebandFirmware if iOS 7.x or lower is being installed */
                 if (client->build_major <= 11) {
                     if (!strcmp(device, "iPhone4,1")) {
                         partialzip_download_file("http://appldnld.apple.com/iOS6.1/091-2611.20130319.Fr54r/iPhone4,1_6.1.3_10B329_Restore.ipsw", bbfwpath, "bbfw.tmp");
@@ -1347,9 +1373,11 @@ rdcheckdone:
                         partialzip_download_file("http://appldnld.apple.com/iOS6.1/091-2464.20130319.KF6yt/iPad2,3_6.1.3_10B329_Restore.ipsw", bbfwpath, "bbfw.tmp");
                     }
                     else {
+                        /* Download latest BasebandFirmware instead */
                         partialzip_download_file(fwurl, bbfwpath, "bbfw.tmp");
                     }
                 }
+                /* Download iOS 8.4.1 BasebandFirmware if iOS 8.x is being installed */
                 else if (client->build_major == 12) {
                     if (!strcmp(device, "iPhone4,1")) {
                         partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31129-20150812-751A3CB8-3C8F-11E5-A8A5-A91A3A53DB92/iPhone4,1_8.4.1_12H321_Restore.ipsw", bbfwpath, "bbfw.tmp");
@@ -1385,9 +1413,11 @@ rdcheckdone:
                         partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31187-20150812-751A8A7E-3C8F-11E5-B300-B71A3A53DB92/iPad3,6_8.4.1_12H321_Restore.ipsw", bbfwpath, "bbfw.tmp");
                     }
                     else {
+                        /* Download latest BasebandFirmware instead */
                         partialzip_download_file(fwurl, bbfwpath, "bbfw.tmp");
                     }
                 }
+                /* Download iOS 8.4.1 BasebandFirmware if iOS 9.x is being installed on an A6(X) device */
                 else if (client->build_major == 13) {
                     if (!strcmp(device, "iPhone5,1")) {
                         partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31186-20150812-751D243C-3C8F-11E5-8E4F-B51A3A53DB92/iPhone5,1_8.4.1_12H321_Restore.ipsw", bbfwpath, "bbfw.tmp");
@@ -1402,10 +1432,12 @@ rdcheckdone:
                         partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31187-20150812-751A8A7E-3C8F-11E5-B300-B71A3A53DB92/iPad3,6_8.4.1_12H321_Restore.ipsw", bbfwpath, "bbfw.tmp");
                     }
                     else {
+                        /* Download latest BasebandFirmware instead */
                         partialzip_download_file(fwurl, bbfwpath, "bbfw.tmp");
                     }
                 }
                 else {
+                    /* Download latest BasebandFirmware instead */
                     partialzip_download_file(fwurl, bbfwpath, "bbfw.tmp");
                 }
                 client->basebandPath = "bbfw.tmp";
