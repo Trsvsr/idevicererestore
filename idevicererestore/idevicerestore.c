@@ -994,10 +994,6 @@ rdcheckdone:
             return -2;
         }
     }
-    
-    if (client->mode->index == MODE_DFU) {
-        client->mode = &idevicerestore_modes[MODE_RECOVERY];
-    }
     else {
         if ((client->build_major > 8) && !(client->flags & FLAG_CUSTOM)) {
             if (!client->image4supported) {
@@ -1015,10 +1011,11 @@ rdcheckdone:
                 unlink(filesystem);
             return -2;
         }
+        
         recovery_client_free(client);
         
-        /* Wait 0.8s after attempting to boot the image */
-        usleep(800000);
+        /* Wait 2s after attempting to boot the image */
+        sleep(2);
         
         int mode = 0;
         
@@ -1041,9 +1038,47 @@ rdcheckdone:
             }
             
             /* Hello recovery */
+            
+            if (recovery_client_new(client)) {
+                error("Failed to connect to device\n");
+                return -1;
+            }
+            
             break;
         }
     }
+    
+    /* Check the IBFL to see if we've successfully entered iBEC */
+    const struct irecv_device_info *device_info = irecv_get_device_info(client->recovery->client);
+    
+    if (!device_info) {
+        error("Couldn't query device info\n");
+        return -1;
+    }
+    
+    switch (device_info->ibfl) {
+        case 0x03:
+        case 0x1B:
+            
+            if (client->isCustom || !(client->build_major == 9 || client->build_major == 13)) {
+                error("Failed to enter iBEC.\n");
+            }
+            else {
+                error("Failed to enter iBEC. Your APTicket might not be usable for re-restoring.\n");
+            }
+            
+            return -1;
+            
+        case 0x1A:
+        case 0x02:
+            printf("Successfully entered iBEC\n");
+            
+        default:
+            break;
+    }
+    
+    recovery_client_free(client);
+    
     idevicerestore_progress(client, RESTORE_STEP_PREPARE, 0.5);
     
     if (client->flags & FLAG_RERESTORE) {

@@ -17,8 +17,6 @@
 		B17F72FF21BC706900CEACF9 /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B17F72FE21BC706900CEACF9 /* IOKit.framework */; };
 		B17F730721BC71B900CEACF9 /* libcurl.4.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = B17F730421BC71A300CEACF9 /* libcurl.4.dylib */; };
 		B17F730921BC71E400CEACF9 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B17F730821BC71E400CEACF9 /* CoreFoundation.framework */; };
-		B17F730F21BC756D00CEACF9 /* libbz2.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = B17F730E21BC756D00CEACF9 /* libbz2.tbd */; };
-		B17F731121BC758000CEACF9 /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = B17F731021BC758000CEACF9 /* libz.tbd */; };
 		B17F731421BC770700CEACF9 /* idevicerestore.c in Sources */ = {isa = PBXBuildFile; fileRef = B17F731321BC770700CEACF9 /* idevicerestore.c */; };
 		FEC0523C21BC622400EC8B17 /* fdr.c in Sources */ = {isa = PBXBuildFile; fileRef = FEC0521321BC621B00EC8B17 /* fdr.c */; };
 		FEC0523D21BC622400EC8B17 /* ipsw.c in Sources */ = {isa = PBXBuildFile; fileRef = FEC0521721BC621B00EC8B17 /* ipsw.c */; };
@@ -39,6 +37,8 @@
 		FEC0524D21BC622400EC8B17 /* partial.c in Sources */ = {isa = PBXBuildFile; fileRef = FEC0523821BC622300EC8B17 /* partial.c */; };
 		FEC0524E21BC622400EC8B17 /* socket.c in Sources */ = {isa = PBXBuildFile; fileRef = FEC0523921BC622300EC8B17 /* socket.c */; };
 		FEC0524F21BC622400EC8B17 /* download.c in Sources */ = {isa = PBXBuildFile; fileRef = FEC0523A21BC622300EC8B17 /* download.c */; };
+		FEC0528A21C0184200EC8B17 /* libz.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FEC0528921C0184200EC8B17 /* libz.a */; };
+		FEC0528C21C018E500EC8B17 /* libbz2.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FEC0528B21C018E500EC8B17 /* libbz2.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -114,6 +114,8 @@
 		FEC0523A21BC622300EC8B17 /* download.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = download.c; sourceTree = "<group>"; };
 		FEC0523B21BC622400EC8B17 /* recovery.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = recovery.h; sourceTree = "<group>"; };
 		FEC0526321BC673B00EC8B17 /* globals.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = globals.h; sourceTree = "<group>"; };
+		FEC0528921C0184200EC8B17 /* libz.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libz.a; sourceTree = "<group>"; };
+		FEC0528B21C018E500EC8B17 /* libbz2.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libbz2.a; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -121,15 +123,15 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B17F731121BC758000CEACF9 /* libz.tbd in Frameworks */,
-				B17F730F21BC756D00CEACF9 /* libbz2.tbd in Frameworks */,
 				B17F730921BC71E400CEACF9 /* CoreFoundation.framework in Frameworks */,
 				B17F72FF21BC706900CEACF9 /* IOKit.framework in Frameworks */,
 				B17F72F521BC6FFB00CEACF9 /* libcrypto.a in Frameworks */,
 				B17F72F721BC6FFB00CEACF9 /* libimobiledevice.a in Frameworks */,
+				FEC0528A21C0184200EC8B17 /* libz.a in Frameworks */,
 				B17F72F821BC6FFB00CEACF9 /* libirecovery.a in Frameworks */,
 				B17F72F921BC6FFB00CEACF9 /* libplist.a in Frameworks */,
 				B17F72FA21BC6FFB00CEACF9 /* libssl.a in Frameworks */,
+				FEC0528C21C018E500EC8B17 /* libbz2.a in Frameworks */,
 				B17F72FB21BC6FFB00CEACF9 /* libusbmuxd.a in Frameworks */,
 				B17F72FC21BC6FFB00CEACF9 /* libzip.a in Frameworks */,
 				B17F730721BC71B900CEACF9 /* libcurl.4.dylib in Frameworks */,
@@ -209,6 +211,8 @@
 		FEC0525021BC631000EC8B17 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				FEC0528B21C018E500EC8B17 /* libbz2.a */,
+				FEC0528921C0184200EC8B17 /* libz.a */,
 				B17F731021BC758000CEACF9 /* libz.tbd */,
 				B17F730E21BC756D00CEACF9 /* libbz2.tbd */,
 				B17F730C21BC752D00CEACF9 /* libz.1.2.11.dylib */,
@@ -423,10 +427,7 @@
 		FEC0521021BC614000EC8B17 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = (
-					x86_64,
-					i386,
-				);
+				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Manual;
 				DEVELOPMENT_TEAM = "";
@@ -445,13 +446,11 @@
 		FEC0521121BC614000EC8B17 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = (
-					x86_64,
-					i386,
-				);
+				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Manual;
 				DEVELOPMENT_TEAM = "";
+				GCC_OPTIMIZATION_LEVEL = fast;
 				HEADER_SEARCH_PATHS = /usr/local/include;
 				LIBRARY_SEARCH_PATHS = (
 					"$(PROJECT_DIR)",

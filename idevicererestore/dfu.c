@@ -411,8 +411,33 @@ int dfu_enter_recovery(struct idevicerestore_client_t* client, plist_t build_ide
 	}
 
 	dfu_client_free(client);
-
-	sleep(7);
+    
+    /* Wait 2s after attempting to boot the image */
+    sleep(2);
+    
+    mode = 0;
+    
+    /* Try checking for the device's mode for about 10 seconds until it's in recovery again */
+    for (int i=0; i < 20; i++) {
+        
+        /* Get the current mode */
+        mode = check_mode(client);
+        
+        /* If mode came back NULL, wait 0.5s and try again */
+        if (!mode) {
+            usleep(500000);
+            continue;
+        }
+        
+        /* If the current mode is not recovery, wait 0.5s and try again */
+        if (mode != MODE_RECOVERY) {
+            usleep(500000);
+            continue;
+        }
+        
+        /* Hello recovery */
+        break;
+    }
 
 	// Reconnect to device, but this time make sure we're not still in DFU mode
 	if (recovery_client_new(client) < 0) {
