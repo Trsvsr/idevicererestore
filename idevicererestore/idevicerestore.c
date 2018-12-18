@@ -50,8 +50,6 @@
 #include "idevicerestore.h"
 #include "partial.h"
 
-#include "limera1n.h"
-
 #include "locking.h"
 
 #define VERSION_XML "version.xml"
@@ -60,10 +58,8 @@
 
 #ifndef IDEVICERESTORE_NOMAIN
 static struct option longopts[] = {
-    { "update",    no_argument, NULL, 'u' },
     { "debug",   no_argument,       NULL, 'd' },
     { "help",    no_argument,       NULL, 'h' },
-    { "erase",   no_argument,       NULL, 'e' },
     { "rerestore",    no_argument,      NULL, 'r' },
     { "baseband", required_argument,    NULL,    'b' },
     { "manifest", required_argument,    NULL,    'm' },
@@ -72,13 +68,10 @@ static struct option longopts[] = {
 
 void usage(int argc, char* argv[]) {
     char* name = strrchr(argv[0], '/');
-    printf("Usage: %s [OPTIONS] FILE\n", (name ? name + 1 : argv[0]));
-    printf("Re-restore IPSW firmware FILE to an iOS device.\n\n");
+    printf("Usage: %s [OPTIONS] IPSW\n\n", (name ? name + 1 : argv[0]));
     printf("  -r, --rerestore\ttake advantage of the 9.x 32 bit re-restore bug\n");
     printf("  -b, --baseband\tspecify baseband to use instead of the latest OTA baseband\n");
     printf("  -m, --manifest\tspecify manifest to use with the specified baseband\n");
-    printf("  -e, --erase\t\terase the device and perform a full restore\n");
-    printf("  -u, --update\t\tupdate the device rather than erase\n");
     printf("  -d, --debug\t\tprint debug information\n");
     printf("\n");
     printf("Homepage: https://downgrade.party\n");
@@ -300,26 +293,6 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
     if ((client->flags & FLAG_PWN) && (client->mode->index != MODE_DFU)) {
         error("ERROR: you need to put your device into DFU mode to pwn it.\n");
         return -1;
-    }
-    
-    if (client->flags & FLAG_PWN) {
-        recovery_client_free(client);
-        
-        info("connecting to DFU\n");
-        if (dfu_client_new(client) < 0) {
-            return -1;
-        }
-        info("exploiting with limera1n...\n");
-        // TODO: check for non-limera1n device and fail
-        if (limera1n_exploit(client->device, &client->dfu->client) != 0) {
-            error("ERROR: limera1n exploit failed\n");
-            dfu_client_free(client);
-            return -1;
-        }
-        dfu_client_free(client);
-        info("Device should be in pwned DFU state now.\n");
-        
-        return 0;
     }
     
     if (client->flags & FLAG_LATEST) {
@@ -965,25 +938,6 @@ rdcheckdone:
     if (client->mode->index == MODE_DFU) {
         dfu_client_free(client);
         recovery_client_free(client);
-        if ((client->flags & FLAG_CUSTOM) && limera1n_is_supported(client->device)) {
-            info("connecting to DFU\n");
-            if (dfu_client_new(client) < 0) {
-                if (delete_fs && filesystem)
-                    unlink(filesystem);
-                return -1;
-            }
-            info("exploiting with limera1n\n");
-            // TODO: check for non-limera1n device and fail
-            if (limera1n_exploit(client->device, &client->dfu->client) != 0) {
-                error("ERROR: limera1n exploit failed\n");
-                dfu_client_free(client);
-                if (delete_fs && filesystem)
-                    unlink(filesystem);
-                return -1;
-            }
-            dfu_client_free(client);
-            info("exploited\n");
-        }
         if (dfu_enter_recovery(client, build_identity) < 0) {
             error("ERROR: Unable to place device into recovery mode from %s mode\n", client->mode->string);
             plist_free(buildmanifest);
@@ -1729,10 +1683,6 @@ int main(int argc, char* argv[]) {
                 client->flags |= FLAG_DEBUG;
                 break;
                 
-            case 'e':
-                client->flags |= FLAG_ERASE;
-                break;
-                
             case 'r':
                 client->flags |= FLAG_RERESTORE;
                 break;
@@ -1743,10 +1693,6 @@ int main(int argc, char* argv[]) {
                 
             case 'b':
                 client->basebandPath = strdup(optarg);
-                break;
-                
-            case 'u':
-                client->flags |= FLAG_UPDATE;
                 break;
                 
             default:

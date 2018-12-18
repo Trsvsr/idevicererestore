@@ -20,7 +20,6 @@
 		B17F731421BC770700CEACF9 /* idevicerestore.c in Sources */ = {isa = PBXBuildFile; fileRef = B17F731321BC770700CEACF9 /* idevicerestore.c */; };
 		FEC0523C21BC622400EC8B17 /* fdr.c in Sources */ = {isa = PBXBuildFile; fileRef = FEC0521321BC621B00EC8B17 /* fdr.c */; };
 		FEC0523D21BC622400EC8B17 /* ipsw.c in Sources */ = {isa = PBXBuildFile; fileRef = FEC0521721BC621B00EC8B17 /* ipsw.c */; };
-		FEC0523E21BC622400EC8B17 /* limera1n.c in Sources */ = {isa = PBXBuildFile; fileRef = FEC0521A21BC621B00EC8B17 /* limera1n.c */; };
 		FEC0523F21BC622400EC8B17 /* recovery.c in Sources */ = {isa = PBXBuildFile; fileRef = FEC0521B21BC621C00EC8B17 /* recovery.c */; };
 		FEC0524021BC622400EC8B17 /* tss.c in Sources */ = {isa = PBXBuildFile; fileRef = FEC0521C21BC621C00EC8B17 /* tss.c */; };
 		FEC0524121BC622400EC8B17 /* normal.c in Sources */ = {isa = PBXBuildFile; fileRef = FEC0521E21BC621C00EC8B17 /* normal.c */; };
@@ -73,7 +72,6 @@
 		B17F731221BC770600CEACF9 /* idevicerestore.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = idevicerestore.h; sourceTree = "<group>"; };
 		B17F731321BC770700CEACF9 /* idevicerestore.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = idevicerestore.c; sourceTree = "<group>"; };
 		FEC0520821BC614000EC8B17 /* idevicererestore */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = idevicererestore; sourceTree = BUILT_PRODUCTS_DIR; };
-		FEC0521221BC621A00EC8B17 /* limera1n_payload.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = limera1n_payload.h; sourceTree = "<group>"; };
 		FEC0521321BC621B00EC8B17 /* fdr.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = fdr.c; sourceTree = "<group>"; };
 		FEC0521421BC621B00EC8B17 /* dfu.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = dfu.h; sourceTree = "<group>"; };
 		FEC0521521BC621B00EC8B17 /* locking.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = locking.h; sourceTree = "<group>"; };
@@ -81,7 +79,6 @@
 		FEC0521721BC621B00EC8B17 /* ipsw.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = ipsw.c; sourceTree = "<group>"; };
 		FEC0521821BC621B00EC8B17 /* fls.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fls.h; sourceTree = "<group>"; };
 		FEC0521921BC621B00EC8B17 /* asr.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = asr.h; sourceTree = "<group>"; };
-		FEC0521A21BC621B00EC8B17 /* limera1n.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = limera1n.c; sourceTree = "<group>"; };
 		FEC0521B21BC621C00EC8B17 /* recovery.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = recovery.c; sourceTree = "<group>"; };
 		FEC0521C21BC621C00EC8B17 /* tss.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = tss.c; sourceTree = "<group>"; };
 		FEC0521D21BC621C00EC8B17 /* endianness.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = endianness.h; sourceTree = "<group>"; };
@@ -89,7 +86,6 @@
 		FEC0521F21BC621C00EC8B17 /* socket.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = socket.h; sourceTree = "<group>"; };
 		FEC0522021BC621C00EC8B17 /* thread.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = thread.c; sourceTree = "<group>"; };
 		FEC0522121BC621C00EC8B17 /* asr.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = asr.c; sourceTree = "<group>"; };
-		FEC0522321BC621D00EC8B17 /* limera1n.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = limera1n.h; sourceTree = "<group>"; };
 		FEC0522421BC621D00EC8B17 /* common.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = common.c; sourceTree = "<group>"; };
 		FEC0522521BC621D00EC8B17 /* dfu.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = dfu.c; sourceTree = "<group>"; };
 		FEC0522621BC621D00EC8B17 /* img4.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = img4.c; sourceTree = "<group>"; };
@@ -182,9 +178,6 @@
 				FEC0523121BC622000EC8B17 /* img4.h */,
 				FEC0521721BC621B00EC8B17 /* ipsw.c */,
 				FEC0523521BC622200EC8B17 /* ipsw.h */,
-				FEC0521221BC621A00EC8B17 /* limera1n_payload.h */,
-				FEC0521A21BC621B00EC8B17 /* limera1n.c */,
-				FEC0522321BC621D00EC8B17 /* limera1n.h */,
 				FEC0523321BC622100EC8B17 /* locking.c */,
 				FEC0521521BC621B00EC8B17 /* locking.h */,
 				FEC0522921BC621E00EC8B17 /* mbn.c */,
@@ -298,7 +291,6 @@
 				FEC0524D21BC622400EC8B17 /* partial.c in Sources */,
 				FEC0524421BC622400EC8B17 /* common.c in Sources */,
 				FEC0524821BC622400EC8B17 /* fls.c in Sources */,
-				FEC0523E21BC622400EC8B17 /* limera1n.c in Sources */,
 				FEC0524521BC622400EC8B17 /* dfu.c in Sources */,
 				FEC0524321BC622400EC8B17 /* asr.c in Sources */,
 				FEC0524E21BC622400EC8B17 /* socket.c in Sources */,
