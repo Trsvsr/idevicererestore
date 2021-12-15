@@ -61,8 +61,6 @@ static struct option longopts[] = {
     { "debug",   no_argument,       NULL, 'd' },
     { "help",    no_argument,       NULL, 'h' },
     { "rerestore",    no_argument,      NULL, 'r' },
-    { "baseband", required_argument,    NULL,    'b' },
-    { "manifest", required_argument,    NULL,    'm' },
     { NULL, 0, NULL, 0 }
 };
 
@@ -70,8 +68,6 @@ void usage(int argc, char* argv[]) {
     char* name = strrchr(argv[0], '/');
     printf("Usage: %s [OPTIONS] IPSW\n\n", (name ? name + 1 : argv[0]));
     printf("  -r, --rerestore\ttake advantage of the 9.x 32 bit re-restore bug\n");
-    printf("  -b, --baseband\tspecify baseband to use instead of the latest OTA baseband\n");
-    printf("  -m, --manifest\tspecify manifest to use with the specified baseband\n");
     printf("  -d, --debug\t\tprint debug information\n");
     printf("\n");
     printf("Homepage: https://downgrade.party\n");
@@ -176,7 +172,7 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
         return -1;
     }
     
-    if (!client->ipsw && !(client->flags & FLAG_PWN) && !(client->flags & FLAG_LATEST)) {
+    if (!client->ipsw && !(client->flags & FLAG_LATEST)) {
         error("ERROR: no ipsw file given\n");
         return -1;
     }
@@ -290,11 +286,6 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
     idevicerestore_progress(client, RESTORE_STEP_DETECT, 0.2);
     info("Identified device as %s, %s\n", client->device->hardware_model, client->device->product_type);
     
-    if ((client->flags & FLAG_PWN) && (client->mode->index != MODE_DFU)) {
-        error("ERROR: you need to put your device into DFU mode to pwn it.\n");
-        return -1;
-    }
-    
     if (client->flags & FLAG_LATEST) {
         char* ipsw = NULL;
         int res = ipsw_download_latest_fw(client->version_data, client->device->product_type, client->cache_dir, &ipsw);
@@ -336,20 +327,12 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
     
     // extract buildmanifest
     plist_t buildmanifest = NULL;
-    if (client->flags & FLAG_CUSTOM) {
-        info("Extracting Restore.plist from IPSW\n");
-        if (ipsw_extract_restore_plist(client->ipsw, &buildmanifest) < 0) {
-            error("ERROR: Unable to extract Restore.plist from %s. Firmware file might be corrupt.\n", client->ipsw);
-            return -1;
-        }
+    info("Extracting BuildManifest from IPSW\n");
+    if (ipsw_extract_build_manifest(client->ipsw, &buildmanifest, &tss_enabled) < 0) {
+        error("ERROR: Unable to extract BuildManifest from %s. Firmware file might be corrupt.\n", client->ipsw);
+        return -1;
     }
-    else {
-        info("Extracting BuildManifest from IPSW\n");
-        if (ipsw_extract_build_manifest(client->ipsw, &buildmanifest, &tss_enabled) < 0) {
-            error("ERROR: Unable to extract BuildManifest from %s. Firmware file might be corrupt.\n", client->ipsw);
-            return -1;
-        }
-    }
+    
     idevicerestore_progress(client, RESTORE_STEP_DETECT, 0.8);
     
     
@@ -373,171 +356,11 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
         return -1;
     }
     
-    if (client->flags & FLAG_CUSTOM) {
-        /* prevent signing custom firmware */
-        tss_enabled = 0;
-        info("Custom firmware requested. Disabled TSS request.\n");
-    }
     
-    // choose whether this is an upgrade or a restore (default to upgrade)
     client->tss = NULL;
     plist_t build_identity = NULL;
-    if (client->flags & FLAG_CUSTOM) {
-        build_identity = plist_new_dict();
-        {
-            plist_t node;
-            plist_t comp;
-            plist_t inf;
-            plist_t manifest;
-            
-            char tmpstr[256];
-            char p_all_flash[128];
-            char lcmodel[8];
-            strcpy(lcmodel, client->device->hardware_model);
-            int x = 0;
-            while (lcmodel[x]) {
-                lcmodel[x] = tolower(lcmodel[x]);
-                x++;
-            }
-            
-            sprintf(p_all_flash, "Firmware/all_flash/all_flash.%s.%s", lcmodel, "production");
-            strcpy(tmpstr, p_all_flash);
-            strcat(tmpstr, "/manifest");
-            
-            // get all_flash file manifest
-            char *files[16];
-            char *fmanifest = NULL;
-            uint32_t msize = 0;
-            if (ipsw_extract_to_memory(client->ipsw, tmpstr, (unsigned char**)&fmanifest, &msize) < 0) {
-                error("ERROR: could not extract %s from IPSW\n", tmpstr);
-                return -1;
-            }
-            
-            char *tok = strtok(fmanifest, "\r\n");
-            int fc = 0;
-            while (tok) {
-                files[fc++] = strdup(tok);
-                if (fc >= 16) {
-                    break;
-                }
-                tok = strtok(NULL, "\r\n");
-            }
-            free(fmanifest);
-            
-            manifest = plist_new_dict();
-            
-            for (x = 0; x < fc; x++) {
-                inf = plist_new_dict();
-                strcpy(tmpstr, p_all_flash);
-                strcat(tmpstr, "/");
-                strcat(tmpstr, files[x]);
-                plist_dict_set_item(inf, "Path", plist_new_string(tmpstr));
-                comp = plist_new_dict();
-                plist_dict_set_item(comp, "Info", inf);
-                const char* compname = get_component_name(files[x]);
-                if (compname) {
-                    plist_dict_set_item(manifest, compname, comp);
-                    if (!strncmp(files[x], "DeviceTree", 10)) {
-                        plist_dict_set_item(manifest, "RestoreDeviceTree", plist_copy(comp));
-                    }
-                }
-                else {
-                    error("WARNING: unhandled component %s\n", files[x]);
-                    plist_free(comp);
-                }
-                free(files[x]);
-                files[x] = NULL;
-            }
-            
-            // add iBSS
-            sprintf(tmpstr, "Firmware/dfu/iBSS.%s.%s.dfu", lcmodel, "RELEASE");
-            inf = plist_new_dict();
-            plist_dict_set_item(inf, "Path", plist_new_string(tmpstr));
-            comp = plist_new_dict();
-            plist_dict_set_item(comp, "Info", inf);
-            plist_dict_set_item(manifest, "iBSS", comp);
-            
-            // add iBEC
-            sprintf(tmpstr, "Firmware/dfu/iBEC.%s.%s.dfu", lcmodel, "RELEASE");
-            inf = plist_new_dict();
-            plist_dict_set_item(inf, "Path", plist_new_string(tmpstr));
-            comp = plist_new_dict();
-            plist_dict_set_item(comp, "Info", inf);
-            plist_dict_set_item(manifest, "iBEC", comp);
-            
-            // add kernel cache
-            plist_t kdict = NULL;
-            
-            node = plist_dict_get_item(buildmanifest, "KernelCachesByTarget");
-            if (node && (plist_get_node_type(node) == PLIST_DICT)) {
-                char tt[4];
-                strncpy(tt, lcmodel, 3);
-                tt[3] = 0;
-                kdict = plist_dict_get_item(node, tt);
-            }
-            else {
-                // Populated in older iOS IPSWs
-                kdict = plist_dict_get_item(buildmanifest, "RestoreKernelCaches");
-            }
-            if (kdict && (plist_get_node_type(kdict) == PLIST_DICT)) {
-                plist_t kc = plist_dict_get_item(kdict, "Release");
-                if (kc && (plist_get_node_type(kc) == PLIST_STRING)) {
-                    inf = plist_new_dict();
-                    plist_dict_set_item(inf, "Path", plist_copy(kc));
-                    comp = plist_new_dict();
-                    plist_dict_set_item(comp, "Info", inf);
-                    plist_dict_set_item(manifest, "KernelCache", comp);
-                    plist_dict_set_item(manifest, "RestoreKernelCache", plist_copy(comp));
-                }
-            }
-            
-            // add ramdisk
-            node = plist_dict_get_item(buildmanifest, "RestoreRamDisks");
-            if (node && (plist_get_node_type(node) == PLIST_DICT)) {
-                plist_t rd = plist_dict_get_item(node, (client->flags & FLAG_ERASE) ? "User" : "Update");
-                // if no "Update" ram disk entry is found try "User" ram disk instead
-                if (!rd && !(client->flags & FLAG_ERASE)) {
-                    rd = plist_dict_get_item(node, "User");
-                    // also, set the ERASE flag since we actually change the restore variant
-                    client->flags |= FLAG_ERASE;
-                }
-                if (rd && (plist_get_node_type(rd) == PLIST_STRING)) {
-                    inf = plist_new_dict();
-                    plist_dict_set_item(inf, "Path", plist_copy(rd));
-                    comp = plist_new_dict();
-                    plist_dict_set_item(comp, "Info", inf);
-                    plist_dict_set_item(manifest, "RestoreRamDisk", comp);
-                }
-            }
-            
-            // add OS filesystem
-            node = plist_dict_get_item(buildmanifest, "SystemRestoreImages");
-            if (!node) {
-                error("ERROR: missing SystemRestoreImages in Restore.plist\n");
-            }
-            plist_t os = plist_dict_get_item(node, "User");
-            if (!os) {
-                error("ERROR: missing filesystem in Restore.plist\n");
-            }
-            else {
-                inf = plist_new_dict();
-                plist_dict_set_item(inf, "Path", plist_copy(os));
-                comp = plist_new_dict();
-                plist_dict_set_item(comp, "Info", inf);
-                plist_dict_set_item(manifest, "OS", comp);
-            }
-            
-            // add info
-            inf = plist_new_dict();
-            plist_dict_set_item(inf, "RestoreBehavior", plist_new_string((client->flags & FLAG_ERASE) ? "Erase" : "Update"));
-            plist_dict_set_item(inf, "Variant", plist_new_string((client->flags & FLAG_ERASE) ? "Customer Erase Install (IPSW)" : "Customer Upgrade Install (IPSW)"));
-            plist_dict_set_item(build_identity, "Info", inf);
-            
-            // finally add manifest
-            plist_dict_set_item(build_identity, "Manifest", manifest);
-        }
-    }
-    else if (client->flags & FLAG_ERASE) {
+    
+    if (client->flags & FLAG_ERASE) {
         build_identity = build_manifest_get_build_identity_for_model_with_restore_behavior(buildmanifest, client->device->hardware_model, "Erase");
         if (build_identity == NULL) {
             error("ERROR: Unable to find any build identities\n");
@@ -559,49 +382,42 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
     plist_t buildmanifest2 = NULL;
     plist_t build_identity2 = NULL;
     
-    
     idevicerestore_progress(client, RESTORE_STEP_PREPARE, 0.0);
     /* retrieve shsh blobs if required */
-    if (tss_enabled) {
-        debug("Getting device's ECID for TSS request\n");
-        /* fetch the device's ECID for the TSS request */
-        if (get_ecid(client, &client->ecid) < 0) {
-            error("ERROR: Unable to find device ECID\n");
-            return -1;
-        }
-        info("Found ECID " FMT_qu "\n", (long long unsigned int)client->ecid);
-        
-        if (client->build_major > 8) {
-            unsigned char* nonce = NULL;
-            int nonce_size = 0;
-            if (get_ap_nonce(client, &nonce, &nonce_size) < 0) {
-                /* the first nonce request with older firmware releases can fail and it's OK */
-                info("NOTE: Unable to get nonce from device\n");
-            }
-            
-            if (!client->nonce || (nonce_size != client->nonce_size) || (memcmp(nonce, client->nonce, nonce_size) != 0)) {
-                if (client->nonce) {
-                    free(client->nonce);
-                }
-                client->nonce = nonce;
-                client->nonce_size = nonce_size;
-            }
-            else {
-                free(nonce);
-            }
+    debug("Getting device's ECID for TSS request\n");
+    /* fetch the device's ECID for the TSS request */
+    if (get_ecid(client, &client->ecid) < 0) {
+        error("ERROR: Unable to find device ECID\n");
+        return -1;
+    }
+    info("Found ECID " FMT_qu "\n", (long long unsigned int)client->ecid);
+    
+    if (client->build_major > 8) {
+        unsigned char* nonce = NULL;
+        int nonce_size = 0;
+        if (get_ap_nonce(client, &nonce, &nonce_size) < 0) {
+            /* the first nonce request with older firmware releases can fail and it's OK */
+            info("NOTE: Unable to get nonce from device\n");
         }
         
-        if (get_tss_response(client, build_identity, &client->tss) < 0) {
-            error("ERROR: Unable to get SHSH blobs for this device\n");
-            return -1;
+        if (!client->nonce || (nonce_size != client->nonce_size) || (memcmp(nonce, client->nonce, nonce_size) != 0)) {
+            if (client->nonce) {
+                free(client->nonce);
+            }
+            client->nonce = nonce;
+            client->nonce_size = nonce_size;
+        }
+        else {
+            free(nonce);
         }
     }
     
+    if (get_tss_response(client, build_identity, &client->tss) < 0) {
+        error("ERROR: Unable to get SHSH blobs for this device\n");
+        return -1;
+    }
+    
     if (client->flags & FLAG_SHSHONLY) {
-        if (!tss_enabled) {
-            info("This device does not require a TSS record\n");
-            return 0;
-        }
         if (!client->tss) {
             error("ERROR: could not fetch TSS record\n");
             plist_free(buildmanifest);
@@ -707,7 +523,7 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
         if (*(uint32_t*)(void*)(ramdiskData+0xC) == 0x0) {
             free(ticketData);
             free(ramdiskData);
-            client->isCustom = 1;
+            client->flags |= FLAG_CUSTOM;
             goto rdcheckdone;
         }
         
@@ -787,7 +603,9 @@ int idevicerestore_start(struct idevicerestore_client_t* client)
                 free(ticketData);
                 
                 /* We can probably safely assume here that this is a custom restore if we haven't found the RestoreRamDisk hashes in the ticket */
-                client->isCustom = 1;
+                if (!(client->flags & FLAG_CUSTOM)) {
+                    client->flags |= FLAG_CUSTOM;
+                }
                 
                 /* Continue from here */
                 goto rdcheckdone;
@@ -949,8 +767,12 @@ rdcheckdone:
         }
     }
     else {
-        if ((client->build_major > 8) && !(client->flags & FLAG_CUSTOM)) {
-            if (!client->image4supported) {
+        if (client->build_major > 8) {
+            if (client->image4supported) {
+                error("This copy of iDeviceReRestore does not support Image4 devices. Use iDeviceRestore instead (https://github.com/libimobiledevice/idevicerestore)\n");
+                return -1;
+            }
+            else {
                 /* send ApTicket */
                 if (recovery_send_ticket(client) < 0) {
                     error("WARNING: Unable to send APTicket\n");
@@ -1014,7 +836,7 @@ rdcheckdone:
         case 0x03:
         case 0x1B:
             
-            if (client->isCustom || !(client->build_major == 9 || client->build_major == 13)) {
+            if ((client->flags & FLAG_CUSTOM) || !(client->build_major == 9 || client->build_major == 13)) {
                 error("Failed to enter iBEC.\n");
             }
             else {
@@ -1044,109 +866,10 @@ rdcheckdone:
             return -1;
         }
         
-        if (!client->manifestPath) {
-            /* Download iOS 6.1.3 OTA BuildManifest if iOS 7.x or lower is being installed */
-            if (client->build_major <= 11) {
-                /* Check if the device is an iPhone 4S */
-                if (!strcmp(client->device->product_type, "iPhone4,1")) {
-                    partialzip_download_file("http://appldnld.apple.com/iOS6.1/091-3360.20130311.BmfR4/com_apple_MobileAsset_SoftwareUpdate/82b056c7a9e455ad4f00d1b5169e5b56ab8c2cc7.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
-                }
-                /* Check if the device is an iPad 2 (GSM) */
-                else if (!strcmp(client->device->product_type, "iPad2,2")) {
-                    partialzip_download_file("http://appldnld.apple.com/iOS6.1/091-3360.20130311.BmfR4/com_apple_MobileAsset_SoftwareUpdate/bbfca2293088712e39f58caf76708fbd6a53e7a7.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
-                }
-                /* Check if the device is an iPad 2 (CDMA) */
-                else if (!strcmp(client->device->product_type, "iPad2,3")) {
-                    partialzip_download_file("http://appldnld.apple.com/iOS6.1/091-3360.20130311.BmfR4/com_apple_MobileAsset_SoftwareUpdate/e1b90d0d74353756962990b9df74a2416d9b058f.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
-                }
-                else {
-                    /* Download latest BuildManifest if the device is not an iPhone 4S or iPad 2 */
-                    partialzip_download_file(fwurl, "BuildManifest.plist", "BuildManifest_New.plist");
-                }
-            }
-            /* Download iOS 8.4.1 OTA BuildManifest if iOS 8.x is being installed */
-            else if (client->build_major == 12) {
-                /* Check if the device is an iPhone 4S */
-                if (!strcmp(client->device->product_type, "iPhone4,1")) {
-                    partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31215-20150812-CFBCEB38-3D03-11E5-BCA3-03413A53DB92/com_apple_MobileAsset_SoftwareUpdate/811881b14b0e940233c77e7fc5f9719c7944c132.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
-                }
-                /* Check if the device is an iPhone 5 (GSM) */
-                else if (!strcmp(client->device->product_type, "iPhone5,1")) {
-                    partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31255-20150812-397905A2-3D04-11E5-A980-F7443A53DB92/com_apple_MobileAsset_SoftwareUpdate/b05418a539a1b91fbfc56ea19863dacc88563d79.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
-                }
-                /* Check if the device is an iPhone 5 (Global) */
-                else if (!strcmp(client->device->product_type, "iPhone5,2")) {
-                    partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31072-20150812-BBD41004-3D00-11E5-B0D8-0C303A53DB92/com_apple_MobileAsset_SoftwareUpdate/46b2fa23b1d819a4bebfd424cc7078936c3e2d6e.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
-                }
-                /* Check if the device is an iPad 2 (GSM) */
-                else if (!strcmp(client->device->product_type, "iPad2,2")) {
-                    partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31146-20150812-33AD9B20-3D03-11E5-A2FB-CD3A3A53DB92/com_apple_MobileAsset_SoftwareUpdate/ca4d6ad210c5a4156e8564c60d336bd2b701ca9a.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
-                }
-                /* Check if the device is an iPad 2 (CDMA) */
-                else if (!strcmp(client->device->product_type, "iPad2,3")) {
-                    partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31090-20150812-03686E1A-3D01-11E5-80C0-77323A53DB92/com_apple_MobileAsset_SoftwareUpdate/c121690f77afbd762b0c993ada682c4ce2e20704.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
-                }
-                /* Check if the device is an iPad mini (GSM) */
-                else if (!strcmp(client->device->product_type, "iPad2,6")) {
-                    partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-30997-20150812-99F14F9E-3CFE-11E5-91E9-72273A53DB92/com_apple_MobileAsset_SoftwareUpdate/78d4991d74ec2f0a82eefb817fb228f798b27923.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
-                }
-                /* Check if the device is an iPad mini (CDMA) */
-                else if (!strcmp(client->device->product_type, "iPad2,7")) {
-                    partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31110-20150812-45750DAE-3D01-11E5-B0D1-DD343A53DB92/com_apple_MobileAsset_SoftwareUpdate/927f3aa82bac01147aca334104c7fc4d7f18cd0d.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
-                }
-                /* Check if the device is an iPad 3 (CDMA) */
-                else if (!strcmp(client->device->product_type, "iPad3,2")) {
-                    partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31082-20150812-E0B48A66-3D00-11E5-A10B-52313A53DB92/com_apple_MobileAsset_SoftwareUpdate/f2e239e008b9d6354d21ef28a22731ebd53b6949.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
-                }
-                /* Check if the device is an iPad 3 (GSM) */
-                else if (!strcmp(client->device->product_type, "iPad3,3")) {
-                    partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31052-20150812-907C7F22-3D00-11E5-AF16-F22D3A53DB92/com_apple_MobileAsset_SoftwareUpdate/eeeb6a55a5c754da89bdec813113eef18fc52e8f.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
-                }
-                /* Check if the device is an iPad 4 (GSM) */
-                else if (!strcmp(client->device->product_type, "iPad3,5")) {
-                    partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31063-20150812-A647D798-3D00-11E5-AC3E-4E2F3A53DB92/com_apple_MobileAsset_SoftwareUpdate/eefcdf6c2c55f9280a643d5da35039018f162c29.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
-                }
-                /* Check if the device is an iPad 4 (CDMA) */
-                else if (!strcmp(client->device->product_type, "iPad3,6")) {
-                    partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31343-20150812-21F639F2-3D06-11E5-BC83-3D4F3A53DB92/com_apple_MobileAsset_SoftwareUpdate/f37464602fd52f2468b0146e17a6d117b201d0bf.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
-                }
-                else {
-                    /* Download latest manifest if not any of the above devices */
-                    partialzip_download_file(fwurl, "BuildManifest.plist", "BuildManifest_New.plist");
-                }
-            }
-            /* Download iOS 8.4.1 OTA BuildManifest on A6(X) devices (iPhone 5, iPad 4) if iOS 9.x is being installed */
-            else if (client->build_major == 13) {
-                /* Check if the device is an iPhone 5 (GSM) */
-                if (!strcmp(client->device->product_type, "iPhone5,1")) {
-                    partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31255-20150812-397905A2-3D04-11E5-A980-F7443A53DB92/com_apple_MobileAsset_SoftwareUpdate/b05418a539a1b91fbfc56ea19863dacc88563d79.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
-                }
-                /* Check if the device is an iPhone 5 (Global) */
-                else if (!strcmp(client->device->product_type, "iPhone5,2")) {
-                    partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31072-20150812-BBD41004-3D00-11E5-B0D8-0C303A53DB92/com_apple_MobileAsset_SoftwareUpdate/46b2fa23b1d819a4bebfd424cc7078936c3e2d6e.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
-                }
-                /* Check if the device is an iPad 4 (GSM) */
-                else if (!strcmp(client->device->product_type, "iPad3,5")) {
-                    partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31063-20150812-A647D798-3D00-11E5-AC3E-4E2F3A53DB92/com_apple_MobileAsset_SoftwareUpdate/eefcdf6c2c55f9280a643d5da35039018f162c29.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
-                }
-                /* Check if the device is an iPad 4 (CDMA) */
-                else if (!strcmp(client->device->product_type, "iPad3,6")) {
-                    partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31343-20150812-21F639F2-3D06-11E5-BC83-3D4F3A53DB92/com_apple_MobileAsset_SoftwareUpdate/f37464602fd52f2468b0146e17a6d117b201d0bf.zip", "AssetData/boot/BuildManifest.plist", "BuildManifest_New.plist");
-                }
-                else {
-                    /* Download latest manifest if not any of the above devices */
-                    partialzip_download_file(fwurl, "BuildManifest.plist", "BuildManifest_New.plist");
-                }
-            }
-            else {
-                /* Download latest manifest if not installing iOS 7.x, iOS 8.x, or an A6(X) device installing iOS 9.x */
-                partialzip_download_file(fwurl, "BuildManifest.plist", "BuildManifest_New.plist");
-            }
-            client->otamanifest = "BuildManifest_New.plist";
-        }
-        else {
-            client->otamanifest = client->manifestPath;
-        }
+        /* download latest firmware's BuildManifest to grab bbfw path later */
+        debug("fwurl: %s\n", fwurl);
+        partialzip_download_file(fwurl, "BuildManifest.plist", "BuildManifest_New.plist");
+        client->otamanifest = "BuildManifest_New.plist";
         
         FILE *ofp = fopen(client->otamanifest, "rb");
         struct stat *ostat = (struct stat*) malloc(sizeof(struct stat));
@@ -1176,6 +899,12 @@ rdcheckdone:
         else if (!strcmp(device, "iPhone5,3"))
             indexCount = 6;
         
+        if (indexCount != -1) {
+            if (client->flags & FLAG_UPDATE) {
+                indexCount+=1;
+            }
+        }
+        
         plist_t node = NULL;
         char *version = 0;
         char *build = 0;
@@ -1187,11 +916,11 @@ rdcheckdone:
         
         unsigned long major = strtoul(build, NULL, 10);
         
-        if (major == 14 && indexCount == -1) {
+        if (major >= 14 && indexCount == -1) {
             error("Error parsing BuildManifest.\n");
             exit(-1);
         }
-        else if (major == 14)
+        else if (major >= 14)
             build_identity2 = build_manifest_get_build_identity(buildmanifest2, indexCount);
         else build_identity2 = build_manifest_get_build_identity(buildmanifest2, 0);
         
@@ -1348,93 +1077,13 @@ rdcheckdone:
         bbdownload:
             
             if (bbfw_path || plist_get_node_type(bbfw_path) != PLIST_STRING) {
+                /* download baseband firmware from either 9.3.6 or 10.3.4, depending on the device */
                 printf("Downloading baseband firmware.\n");
                 plist_get_string_val(bbfw_path, &bbfwpath);
-                /* Download iOS 6.1.3 BasebandFirmware if iOS 7.x or lower is being installed */
-                if (client->build_major <= 11) {
-                    if (!strcmp(device, "iPhone4,1")) {
-                        partialzip_download_file("http://appldnld.apple.com/iOS6.1/091-2611.20130319.Fr54r/iPhone4,1_6.1.3_10B329_Restore.ipsw", bbfwpath, "bbfw.tmp");
-                    }
-                    else if (!strcmp(device, "iPad2,2")) {
-                        partialzip_download_file("http://appldnld.apple.com/iOS6.1/091-2472.20130319.Ta4rt/iPad2,2_6.1.3_10B329_Restore.ipsw", bbfwpath, "bbfw.tmp");
-                    }
-                    else if (!strcmp(device, "iPad2,3")) {
-                        partialzip_download_file("http://appldnld.apple.com/iOS6.1/091-2464.20130319.KF6yt/iPad2,3_6.1.3_10B329_Restore.ipsw", bbfwpath, "bbfw.tmp");
-                    }
-                    else {
-                        /* Download latest BasebandFirmware instead */
-                        partialzip_download_file(fwurl, bbfwpath, "bbfw.tmp");
-                    }
-                }
-                /* Download iOS 8.4.1 BasebandFirmware if iOS 8.x is being installed */
-                else if (client->build_major == 12) {
-                    if (!strcmp(device, "iPhone4,1")) {
-                        partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31129-20150812-751A3CB8-3C8F-11E5-A8A5-A91A3A53DB92/iPhone4,1_8.4.1_12H321_Restore.ipsw", bbfwpath, "bbfw.tmp");
-                    }
-                    else if (!strcmp(device, "iPhone5,1")) {
-                        partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31186-20150812-751D243C-3C8F-11E5-8E4F-B51A3A53DB92/iPhone5,1_8.4.1_12H321_Restore.ipsw", bbfwpath, "bbfw.tmp");
-                    }
-                    else if (!strcmp(device, "iPhone5,2")) {
-                        partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31065-20150812-7518F132-3C8F-11E5-A96A-A11A3A53DB92/iPhone5,2_8.4.1_12H321_Restore.ipsw", bbfwpath, "bbfw.tmp");
-                    }
-                    else if (!strcmp(device, "iPad2,2")) {
-                        partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31288-20150812-4490750C-3C90-11E5-84FD-231C3A53DB92/iPad2,2_8.4.1_12H321_Restore.ipsw", bbfwpath, "bbfw.tmp");
-                    }
-                    else if (!strcmp(device, "iPad2,3")) {
-                        partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31281-20150812-40590580-3C90-11E5-92A1-011C3A53DB92/iPad2,3_8.4.1_12H321_Restore.ipsw", bbfwpath, "bbfw.tmp");
-                    }
-                    else if (!strcmp(device, "iPad2,6")) {
-                        partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31278-20150812-751FA1F8-3C8F-11E5-9856-BF1A3A53DB92/iPad2,6_8.4.1_12H321_Restore.ipsw", bbfwpath, "bbfw.tmp");
-                    }
-                    else if (!strcmp(device, "iPad2,7")) {
-                        partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-30932-20150812-7516F936-3C8F-11E5-849C-911A3A53DB92/iPad2,7_8.4.1_12H321_Restore.ipsw", bbfwpath, "bbfw.tmp");
-                    }
-                    else if (!strcmp(device, "iPad3,2")) {
-                        partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-30995-20150812-7517C906-3C8F-11E5-AEB0-971A3A53DB92/iPad3,2_8.4.1_12H321_Restore.ipsw", bbfwpath, "bbfw.tmp");
-                    }
-                    else if (!strcmp(device, "iPad3,3")) {
-                        partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31372-20150812-767B933A-3C90-11E5-9E13-FF1C3A53DB92/iPad3,3_8.4.1_12H321_Restore.ipsw", bbfwpath, "bbfw.tmp");
-                    }
-                    else if (!strcmp(device, "iPad3,5")) {
-                        partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31092-20150812-7518CFB8-3C8F-11E5-B849-A51A3A53DB92/iPad3,5_8.4.1_12H321_Restore.ipsw", bbfwpath, "bbfw.tmp");
-                    }
-                    else if (!strcmp(device, "iPad3,6")) {
-                        partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31187-20150812-751A8A7E-3C8F-11E5-B300-B71A3A53DB92/iPad3,6_8.4.1_12H321_Restore.ipsw", bbfwpath, "bbfw.tmp");
-                    }
-                    else {
-                        /* Download latest BasebandFirmware instead */
-                        partialzip_download_file(fwurl, bbfwpath, "bbfw.tmp");
-                    }
-                }
-                /* Download iOS 8.4.1 BasebandFirmware if iOS 9.x is being installed on an A6(X) device */
-                else if (client->build_major == 13) {
-                    if (!strcmp(device, "iPhone5,1")) {
-                        partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31186-20150812-751D243C-3C8F-11E5-8E4F-B51A3A53DB92/iPhone5,1_8.4.1_12H321_Restore.ipsw", bbfwpath, "bbfw.tmp");
-                    }
-                    else if (!strcmp(device, "iPhone5,2")) {
-                        partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31065-20150812-7518F132-3C8F-11E5-A96A-A11A3A53DB92/iPhone5,2_8.4.1_12H321_Restore.ipsw", bbfwpath, "bbfw.tmp");
-                    }
-                    else if (!strcmp(device, "iPad3,5")) {
-                        partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31092-20150812-7518CFB8-3C8F-11E5-B849-A51A3A53DB92/iPad3,5_8.4.1_12H321_Restore.ipsw", bbfwpath, "bbfw.tmp");
-                    }
-                    else if (!strcmp(device, "iPad3,6")) {
-                        partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31187-20150812-751A8A7E-3C8F-11E5-B300-B71A3A53DB92/iPad3,6_8.4.1_12H321_Restore.ipsw", bbfwpath, "bbfw.tmp");
-                    }
-                    else {
-                        /* Download latest BasebandFirmware instead */
-                        partialzip_download_file(fwurl, bbfwpath, "bbfw.tmp");
-                    }
-                }
-                else {
-                    /* Download latest BasebandFirmware instead */
-                    partialzip_download_file(fwurl, bbfwpath, "bbfw.tmp");
-                }
+                debug("bbfwpath: %s\n", bbfwpath);
+                partialzip_download_file(fwurl, bbfwpath, "bbfw.tmp");
                 client->basebandPath = "bbfw.tmp";
             }
-        }
-        else {
-            /* user specified a manifest to use */
-            printf("Using pre-defined BuildManifest.\n");
         }
     }
     
@@ -1464,7 +1113,7 @@ bbdlout:
             free(nonce);
         }
         
-        if (nonce_changed && !(client->flags & FLAG_CUSTOM)) {
+        if (nonce_changed) {
             // Welcome iOS5. We have to re-request the TSS with our nonce.
             plist_free(client->tss);
             if (get_tss_response(client, build_identity, &client->tss) < 0) {
@@ -1673,7 +1322,7 @@ int main(int argc, char* argv[]) {
         return -1;
     }
     
-    while ((opt = getopt_long(argc, argv, "dhcersxtplui:nC:k:b:m:", longopts, &optindex)) > 0) {
+    while ((opt = getopt_long(argc, argv, "dhcersxtplui:nC:k:", longopts, &optindex)) > 0) {
         switch (opt) {
             case 'h':
                 usage(argc, argv);
@@ -1687,21 +1336,13 @@ int main(int argc, char* argv[]) {
                 client->flags |= FLAG_RERESTORE;
                 break;
                 
-            case 'm':
-                client->manifestPath = strdup(optarg);
-                break;
-                
-            case 'b':
-                client->basebandPath = strdup(optarg);
-                break;
-                
             default:
                 usage(argc, argv);
                 return -1;
         }
     }
     
-    if (((argc-optind) == 1) || (client->flags & FLAG_PWN) || (client->flags & FLAG_LATEST)) {
+    if (((argc-optind) == 1) || (client->flags & FLAG_LATEST)) {
         argc -= optind;
         argv += optind;
         
@@ -2040,7 +1681,7 @@ int get_tss_response(struct idevicerestore_client_t* client, plist_t build_ident
     plist_t response = NULL;
     *tss = NULL;
     
-    if ((client->build_major <= 8) || (client->flags & (FLAG_CUSTOM | FLAG_RERESTORE))) {
+    if ((client->flags & FLAG_RERESTORE)) {
         error("checking for local shsh\n");
         
         /* first check for local copy */

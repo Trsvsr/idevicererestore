@@ -154,7 +154,7 @@ int recovery_enter_restore(struct idevicerestore_client_t* client, plist_t build
 		}
 	}
 
-	if ((client->build_major > 8) && !(client->flags & FLAG_CUSTOM)) {
+	if ((client->build_major > 8)) {
 		if (!client->image4supported) {
 			/* send ApTicket */
 			if (recovery_send_ticket(client) < 0) {

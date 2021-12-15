@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		696A5C142769C90900E6C81A /* libcurl.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 696A5C132769C90900E6C81A /* libcurl.tbd */; };
+		696A5C152769C96A00E6C81A /* libbz2.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = B17F730E21BC756D00CEACF9 /* libbz2.tbd */; };
+		696A5C172769C9E500E6C81A /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 696A5C162769C9E500E6C81A /* Security.framework */; };
+		696A5C192769CA2A00E6C81A /* libldap.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 696A5C182769CA2A00E6C81A /* libldap.tbd */; };
 		B17F72F521BC6FFB00CEACF9 /* libcrypto.a in Frameworks */ = {isa = PBXBuildFile; fileRef = B17F72D021BC6C8900CEACF9 /* libcrypto.a */; };
 		B17F72F721BC6FFB00CEACF9 /* libimobiledevice.a in Frameworks */ = {isa = PBXBuildFile; fileRef = B17F72CE21BC6C8700CEACF9 /* libimobiledevice.a */; };
 		B17F72F821BC6FFB00CEACF9 /* libirecovery.a in Frameworks */ = {isa = PBXBuildFile; fileRef = B17F72CA21BC6C8400CEACF9 /* libirecovery.a */; };
@@ -15,7 +19,6 @@
 		B17F72FB21BC6FFB00CEACF9 /* libusbmuxd.a in Frameworks */ = {isa = PBXBuildFile; fileRef = B17F72C921BC6C8300CEACF9 /* libusbmuxd.a */; };
 		B17F72FC21BC6FFB00CEACF9 /* libzip.a in Frameworks */ = {isa = PBXBuildFile; fileRef = B17F72CF21BC6C8700CEACF9 /* libzip.a */; };
 		B17F72FF21BC706900CEACF9 /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B17F72FE21BC706900CEACF9 /* IOKit.framework */; };
-		B17F730721BC71B900CEACF9 /* libcurl.4.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = B17F730421BC71A300CEACF9 /* libcurl.4.dylib */; };
 		B17F730921BC71E400CEACF9 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B17F730821BC71E400CEACF9 /* CoreFoundation.framework */; };
 		B17F731421BC770700CEACF9 /* idevicerestore.c in Sources */ = {isa = PBXBuildFile; fileRef = B17F731321BC770700CEACF9 /* idevicerestore.c */; };
 		FEC0523C21BC622400EC8B17 /* fdr.c in Sources */ = {isa = PBXBuildFile; fileRef = FEC0521321BC621B00EC8B17 /* fdr.c */; };
@@ -36,8 +39,6 @@
 		FEC0524D21BC622400EC8B17 /* partial.c in Sources */ = {isa = PBXBuildFile; fileRef = FEC0523821BC622300EC8B17 /* partial.c */; };
 		FEC0524E21BC622400EC8B17 /* socket.c in Sources */ = {isa = PBXBuildFile; fileRef = FEC0523921BC622300EC8B17 /* socket.c */; };
 		FEC0524F21BC622400EC8B17 /* download.c in Sources */ = {isa = PBXBuildFile; fileRef = FEC0523A21BC622300EC8B17 /* download.c */; };
-		FEC0528A21C0184200EC8B17 /* libz.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FEC0528921C0184200EC8B17 /* libz.a */; };
-		FEC0528C21C018E500EC8B17 /* libbz2.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FEC0528B21C018E500EC8B17 /* libbz2.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -53,6 +54,9 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		696A5C132769C90900E6C81A /* libcurl.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libcurl.tbd; path = usr/lib/libcurl.tbd; sourceTree = SDKROOT; };
+		696A5C162769C9E500E6C81A /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
+		696A5C182769CA2A00E6C81A /* libldap.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libldap.tbd; path = usr/lib/libldap.tbd; sourceTree = SDKROOT; };
 		B17F72C921BC6C8300CEACF9 /* libusbmuxd.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libusbmuxd.a; sourceTree = "<group>"; };
 		B17F72CA21BC6C8400CEACF9 /* libirecovery.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libirecovery.a; sourceTree = "<group>"; };
 		B17F72CB21BC6C8400CEACF9 /* libplist.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libplist.a; sourceTree = "<group>"; };
@@ -119,18 +123,19 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				696A5C192769CA2A00E6C81A /* libldap.tbd in Frameworks */,
+				696A5C172769C9E500E6C81A /* Security.framework in Frameworks */,
+				696A5C152769C96A00E6C81A /* libbz2.tbd in Frameworks */,
+				696A5C142769C90900E6C81A /* libcurl.tbd in Frameworks */,
 				B17F730921BC71E400CEACF9 /* CoreFoundation.framework in Frameworks */,
 				B17F72FF21BC706900CEACF9 /* IOKit.framework in Frameworks */,
 				B17F72F521BC6FFB00CEACF9 /* libcrypto.a in Frameworks */,
 				B17F72F721BC6FFB00CEACF9 /* libimobiledevice.a in Frameworks */,
-				FEC0528A21C0184200EC8B17 /* libz.a in Frameworks */,
 				B17F72F821BC6FFB00CEACF9 /* libirecovery.a in Frameworks */,
 				B17F72F921BC6FFB00CEACF9 /* libplist.a in Frameworks */,
 				B17F72FA21BC6FFB00CEACF9 /* libssl.a in Frameworks */,
-				FEC0528C21C018E500EC8B17 /* libbz2.a in Frameworks */,
 				B17F72FB21BC6FFB00CEACF9 /* libusbmuxd.a in Frameworks */,
 				B17F72FC21BC6FFB00CEACF9 /* libzip.a in Frameworks */,
-				B17F730721BC71B900CEACF9 /* libcurl.4.dylib in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -204,6 +209,9 @@
 		FEC0525021BC631000EC8B17 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				696A5C182769CA2A00E6C81A /* libldap.tbd */,
+				696A5C162769C9E500E6C81A /* Security.framework */,
+				696A5C132769C90900E6C81A /* libcurl.tbd */,
 				FEC0528B21C018E500EC8B17 /* libbz2.a */,
 				FEC0528921C0184200EC8B17 /* libz.a */,
 				B17F731021BC758000CEACF9 /* libz.tbd */,
@@ -423,12 +431,16 @@
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Manual;
 				DEVELOPMENT_TEAM = "";
-				HEADER_SEARCH_PATHS = /usr/local/include;
+				HEADER_SEARCH_PATHS = (
+					/usr/local/include,
+					/usr/local/opt/openssl/include,
+				);
 				LIBRARY_SEARCH_PATHS = (
 					"$(PROJECT_DIR)",
 					/usr/local/Cellar/curl/7.57.0/lib,
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.7;
+				OTHER_LDFLAGS = "";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				VALID_ARCHS = "x86_64 i386";
@@ -443,12 +455,16 @@
 				CODE_SIGN_STYLE = Manual;
 				DEVELOPMENT_TEAM = "";
 				GCC_OPTIMIZATION_LEVEL = fast;
-				HEADER_SEARCH_PATHS = /usr/local/include;
+				HEADER_SEARCH_PATHS = (
+					/usr/local/include,
+					/usr/local/opt/openssl/include,
+				);
 				LIBRARY_SEARCH_PATHS = (
 					"$(PROJECT_DIR)",
 					/usr/local/Cellar/curl/7.57.0/lib,
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.7;
+				OTHER_LDFLAGS = "";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				VALID_ARCHS = "x86_64 i386";

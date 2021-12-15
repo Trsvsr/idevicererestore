@@ -173,7 +173,8 @@ int dfu_send_component(struct idevicerestore_client_t* client, plist_t build_ide
 	unsigned char* data = NULL;
 	uint32_t size = 0;
 
-    if (!client->isCustom) {
+    if (!(client->flags & FLAG_CUSTOM)) {
+        
         if (personalize_component(component, component_data, component_size, client->tss, &data, &size) < 0) {
             error("ERROR: Unable to get personalized component: %s\n", component);
             free(component_data);
@@ -193,7 +194,7 @@ int dfu_send_component(struct idevicerestore_client_t* client, plist_t build_ide
 		exit(-1);
 	}
 
-	if (!client->image4supported && client->build_major > 8 && !(client->flags & FLAG_CUSTOM) && !strcmp(component, "iBEC") && !client->isCustom) {
+	if (!client->image4supported && client->build_major > 8 && !(client->flags & FLAG_CUSTOM) && !strcmp(component, "iBEC")) {
 		unsigned char* ticket = NULL;
 		unsigned int tsize = 0;
 		if (tss_response_get_ap_ticket(client->tss, &ticket, &tsize) < 0) {
@@ -383,7 +384,7 @@ int dfu_enter_recovery(struct idevicerestore_client_t* client, plist_t build_ide
 		}
 		info("\n");
 
-		if (nonce_changed && !(client->flags & FLAG_CUSTOM)) {
+		if (nonce_changed) {
 			// Welcome iOS5. We have to re-request the TSS with our nonce.
 			plist_free(client->tss);
 			if (get_tss_response(client, build_identity, &client->tss) < 0) {

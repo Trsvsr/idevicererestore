@@ -31,7 +31,6 @@
 
 #include "idevicerestore.h"
 #include "asr.h"
-#include "fdr.h"
 #include "fls.h"
 #include "mbn.h"
 #include "tss.h"
@@ -794,18 +793,18 @@ int restore_send_root_ticket(restored_client_t restore, struct idevicerestore_cl
 
 	info("About to send RootTicket...\n");
 
-	if (!client->tss && !(client->flags & FLAG_CUSTOM)) {
+	if (!client->tss) {
 		error("ERROR: Cannot send RootTicket without TSS\n");
 		return -1;
 	}
 
-	if (client->image4supported) {
-		if (tss_response_get_ap_img4_ticket(client->tss, &data, &len) < 0) {
-			error("ERROR: Unable to get ApImg4Ticket from TSS\n");
-			return -1;
-		}
-	} else {
-		if (!(client->flags & FLAG_CUSTOM) && (tss_response_get_ap_ticket(client->tss, &data, &len) < 0)) {
+    if (client->image4supported) {
+        error("This copy of iDeviceReRestore does not support Image4 devices. Use iDeviceRestore instead (https://github.com/libimobiledevice/idevicerestore)\n");
+        return -1;
+    }
+    
+    else {
+		if (tss_response_get_ap_ticket(client->tss, &data, &len) < 0) {
 			error("ERROR: Unable to get ticket from TSS\n");
 			return -1;
 		}
@@ -1871,7 +1870,6 @@ int restore_send_baseband_data(restored_client_t restore, struct idevicerestore_
 	}
 	
     if (client->basebandPath) {
-        const char *device = client->device->product_type;
         
         plist_t node = NULL;
         char *version = 0;
@@ -1882,79 +1880,9 @@ int restore_send_baseband_data(restored_client_t restore, struct idevicerestore_
         node = plist_dict_get_item(buildmanifest2, "ProductBuildVersion");
         plist_get_string_val(node, &build);
         
-        
-        if (client->build_major <= 11) {
-            if (!strcmp(device, "iPhone4,1")) {
-                partialzip_download_file("http://appldnld.apple.com/iOS6.1/091-2611.20130319.Fr54r/iPhone4,1_6.1.3_10B329_Restore.ipsw", bbfwpath, client->basebandPath);
-            }
-            else if (!strcmp(device, "iPad2,2")) {
-                partialzip_download_file("http://appldnld.apple.com/iOS6.1/091-2472.20130319.Ta4rt/iPad2,2_6.1.3_10B329_Restore.ipsw", bbfwpath, client->basebandPath);
-            }
-            else if (!strcmp(device, "iPad2,3")) {
-                partialzip_download_file("http://appldnld.apple.com/iOS6.1/091-2464.20130319.KF6yt/iPad2,3_6.1.3_10B329_Restore.ipsw", bbfwpath, client->basebandPath);
-            }
-            else {
-                partialzip_download_file(fwurl, bbfwpath, client->basebandPath);
-            }
-        }
-        else if (client->build_major == 12) {
-            if (!strcmp(device, "iPhone4,1")) {
-                partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31129-20150812-751A3CB8-3C8F-11E5-A8A5-A91A3A53DB92/iPhone4,1_8.4.1_12H321_Restore.ipsw", bbfwpath, client->basebandPath);
-            }
-            else if (!strcmp(device, "iPhone5,1")) {
-                partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31186-20150812-751D243C-3C8F-11E5-8E4F-B51A3A53DB92/iPhone5,1_8.4.1_12H321_Restore.ipsw", bbfwpath, client->basebandPath);
-            }
-            else if (!strcmp(device, "iPhone5,2")) {
-                partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31065-20150812-7518F132-3C8F-11E5-A96A-A11A3A53DB92/iPhone5,2_8.4.1_12H321_Restore.ipsw", bbfwpath, client->basebandPath);
-            }
-            else if (!strcmp(device, "iPad2,2")) {
-                partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31288-20150812-4490750C-3C90-11E5-84FD-231C3A53DB92/iPad2,2_8.4.1_12H321_Restore.ipsw", bbfwpath, client->basebandPath);
-            }
-            else if (!strcmp(device, "iPad2,3")) {
-                partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31281-20150812-40590580-3C90-11E5-92A1-011C3A53DB92/iPad2,3_8.4.1_12H321_Restore.ipsw", bbfwpath, client->basebandPath);
-            }
-            else if (!strcmp(device, "iPad2,6")) {
-                partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31278-20150812-751FA1F8-3C8F-11E5-9856-BF1A3A53DB92/iPad2,6_8.4.1_12H321_Restore.ipsw", bbfwpath, client->basebandPath);
-            }
-            else if (!strcmp(device, "iPad2,7")) {
-                partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-30932-20150812-7516F936-3C8F-11E5-849C-911A3A53DB92/iPad2,7_8.4.1_12H321_Restore.ipsw", bbfwpath, client->basebandPath);
-            }
-            else if (!strcmp(device, "iPad3,2")) {
-                partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-30995-20150812-7517C906-3C8F-11E5-AEB0-971A3A53DB92/iPad3,2_8.4.1_12H321_Restore.ipsw", bbfwpath, client->basebandPath);
-            }
-            else if (!strcmp(device, "iPad3,3")) {
-                partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31372-20150812-767B933A-3C90-11E5-9E13-FF1C3A53DB92/iPad3,3_8.4.1_12H321_Restore.ipsw", bbfwpath, client->basebandPath);
-            }
-            else if (!strcmp(device, "iPad3,5")) {
-                partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31092-20150812-7518CFB8-3C8F-11E5-B849-A51A3A53DB92/iPad3,5_8.4.1_12H321_Restore.ipsw", bbfwpath, client->basebandPath);
-            }
-            else if (!strcmp(device, "iPad3,6")) {
-                partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31187-20150812-751A8A7E-3C8F-11E5-B300-B71A3A53DB92/iPad3,6_8.4.1_12H321_Restore.ipsw", bbfwpath, client->basebandPath);
-            }
-            else {
-                partialzip_download_file(fwurl, bbfwpath, client->basebandPath);
-            }
-        }
-        else if (client->build_major == 13) {
-            if (!strcmp(device, "iPhone5,1")) {
-                partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31186-20150812-751D243C-3C8F-11E5-8E4F-B51A3A53DB92/iPhone5,1_8.4.1_12H321_Restore.ipsw", bbfwpath, client->basebandPath);
-            }
-            else if (!strcmp(device, "iPhone5,2")) {
-                partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31065-20150812-7518F132-3C8F-11E5-A96A-A11A3A53DB92/iPhone5,2_8.4.1_12H321_Restore.ipsw", bbfwpath, client->basebandPath);
-            }
-            else if (!strcmp(device, "iPad3,5")) {
-                partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31092-20150812-7518CFB8-3C8F-11E5-B849-A51A3A53DB92/iPad3,5_8.4.1_12H321_Restore.ipsw", bbfwpath, client->basebandPath);
-            }
-            else if (!strcmp(device, "iPad3,6")) {
-                partialzip_download_file("http://appldnld.apple.com/ios8.4.1/031-31187-20150812-751A8A7E-3C8F-11E5-B300-B71A3A53DB92/iPad3,6_8.4.1_12H321_Restore.ipsw", bbfwpath, client->basebandPath);
-            }
-            else {
-                partialzip_download_file(fwurl, bbfwpath, client->basebandPath);
-            }
-        }
-        else {
-            partialzip_download_file(fwurl, bbfwpath, client->basebandPath);
-        }
+        debug("bbfwpath: %s, basebandPath: %s\n", bbfwpath, client->basebandPath);
+        partialzip_download_file(fwurl, bbfwpath, client->basebandPath);
+    
     }
     
     FILE *bb = fopen(client->basebandPath, "r");
@@ -2017,31 +1945,6 @@ leave:
 	plist_free(response);
 
 	return res;
-}
-
-int restore_send_fdr_trust_data(restored_client_t restore, idevice_t device)
-{
-	restored_error_t restore_error;
-	plist_t dict;
-
-	info("About to send FDR Trust data...\n");
-
-	// FIXME: What should we send here?
-	/* Sending an empty dict makes it continue with FDR
-	 * and this is what iTunes seems to be doing too */
-	dict = plist_new_dict();
-
-	info("Sending FDR Trust data now...\n");
-	restore_error = restored_send(restore, dict);
-	plist_free(dict);
-	if (restore_error != RESTORE_E_SUCCESS) {
-		error("ERROR: During sending FDR Trust data (%d)\n", restore_error);
-		return -1;
-	}
-
-	info("Done sending FDR Trust Data\n");
-
-	return 0;
 }
 
 int restore_send_fud_data(restored_client_t restore, struct idevicerestore_client_t *client, plist_t build_identity)
@@ -2339,13 +2242,6 @@ int restore_handle_data_request_msg(struct idevicerestore_client_t* client, idev
 			}
 		}
 
-		else if (!strcmp(type, "FDRTrustData")) {
-			if(restore_send_fdr_trust_data(restore, device) < 0) {
-				error("ERROR: Unable to send FDR Trust data\n");
-				return -1;
-			}
-		}
-
 		else if (!strcmp(type, "FUDData")) {
 			if(restore_send_fud_data(restore, client, build_identity) < 0) {
 				error("ERROR: Unable to send FUD data\n");
@@ -2379,8 +2275,7 @@ int restore_device(struct idevicerestore_client_t* client, plist_t build_identit
 	idevice_t device = NULL;
 	restored_client_t restore = NULL;
 	restored_error_t restore_error = RESTORE_E_SUCCESS;
-	thread_t fdr_thread = NULL;
-
+    
 	restore_finished = 0;
 
 	// open our connection to the device and verify we're in restore mode
@@ -2460,22 +2355,6 @@ int restore_device(struct idevicerestore_client_t* client, plist_t build_identit
 	if (plist_dict_get_item(client->tss, "BBTicket")) {
 		client->restore->bbtss = plist_copy(client->tss);
 	}
-
-    fdr_client_t fdr_control_channel = NULL;
-    
-    /* We should probably just remove fdr stuff from this fork altogether since no 32 bit devices have it... */
-    if (!(client->flags & FLAG_RERESTORE)) {
-        info("Starting FDR listener thread\n");
-        if (!fdr_connect(device, FDR_CTRL, &fdr_control_channel)) {
-            if(thread_new(&fdr_thread, fdr_listener_thread, fdr_control_channel)) {
-                error("ERROR: Failed to start FDR listener thread\n");
-                fdr_thread = (thread_t)NULL; /* undefined after failure */
-            }
-        } else {
-            error("ERROR: Failed to start FDR Ctrl channel\n");
-            // FIXME: We might want to return failure here as it will likely fail
-        }
-    }
 
 	plist_t opts = plist_new_dict();
 	// FIXME: required?
@@ -2647,16 +2526,6 @@ int restore_device(struct idevicerestore_client_t* client, plist_t build_identit
 		plist_free(message);
 		message = NULL;
 	}
-
-    if (!(client->flags & FLAG_RERESTORE)) {
-        if (fdr_control_channel) {
-            fdr_disconnect(fdr_control_channel);
-            if (fdr_thread) {
-                thread_join(fdr_thread);
-            }
-            fdr_control_channel = NULL;
-        }
-    }
 
 	restore_client_free(client);
 	return err;
